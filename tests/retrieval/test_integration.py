@@ -26,6 +26,7 @@ def test_existing_pdf_and_excel_pipeline_outputs_are_retrievable(
     item = search_documents(
         index, "001", {"kind": "boq_item", "format": "xlsx"}
     ).results[0]
+    assert item.record.boq is not None
     assert item.record.boq.item == "001"
     assert item.record.boq.quantity == 0
     assert item.record.boq.rate == 12.5
@@ -34,7 +35,9 @@ def test_existing_pdf_and_excel_pipeline_outputs_are_retrievable(
     assert item.record.source.row_start == 3
     assert item.record.model_dump(mode="json") == expected[item.record_id]
     for record_id, original in expected.items():
-        assert index.get_record(record_id).model_dump(mode="json") == original
+        record = index.get_record(record_id)
+        assert record is not None
+        assert record.model_dump(mode="json") == original
     for path, contents in originals.items():
         assert path.read_bytes() == contents
 

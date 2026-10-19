@@ -115,7 +115,11 @@ def test_equal_scores_have_stable_source_order_across_reload(tmp_path):
     expected = [
         result.record_id for result in search_documents(index, "concrete").results
     ]
-    assert [index.get_record(key).order_index for key in expected] == [1, 2, 3]
+    assert len(expected) == 3
+    for order, key in enumerate(expected, start=1):
+        record = index.get_record(key)
+        assert record is not None
+        assert record.order_index == order
     path = tmp_path / "rank.jsonl"
     path.write_text("\n".join(reversed(path.read_text().splitlines())) + "\n")
     index.reload()

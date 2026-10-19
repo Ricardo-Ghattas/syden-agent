@@ -47,6 +47,8 @@ def test_excel_preserves_structure_values_and_provenance(workbook, tmp_path):
     )
     items = [r for r in records if r.kind == "boq_item"]
     assert len(items) == 2
+    assert items[0].boq is not None
+    assert items[1].boq is not None
     assert items[0].boq.item == "001"
     assert items[0].boq.quantity == 0
     assert items[0].boq.rate == 12.5
@@ -93,6 +95,8 @@ def test_pdf_preserves_headings_table_boq_and_pages(pdf, tmp_path):
     assert table.table_cells[6].header_ids == ("r0c0",)
     items = [r for r in records if r.kind == "boq_item"]
     assert len(items) == 2
+    assert items[0].boq is not None
+    assert items[1].boq is not None
     assert items[0].boq.item == "001"
     assert items[0].boq.quantity == "0"
     assert items[1].boq.quantity == "-2.5"
@@ -207,6 +211,7 @@ def test_excel_formula_cache_and_merged_cells(workbook, tmp_path):
     cell = next(c for c in item.cells if c.coordinate == "F3")
     assert cell.value == cell.cached_value == 0
     assert cell.formula == "=D3*E3"
+    assert item.boq is not None
     assert item.boq.amount == 0
     title = next(r for r in records if r.kind == "heading")
     assert title.cells[0].merged_range == "A1:F1"
@@ -253,6 +258,7 @@ def test_plain_excel_table_preserves_literal_formula_text(tmp_path):
     path = tmp_path / "plain.xlsx"
     book = Workbook()
     sheet = book.active
+    assert sheet is not None
     sheet.append(["Name", "Value"])
     sheet.append(["Literal", "=not a formula"])
     sheet["B2"].data_type = "s"

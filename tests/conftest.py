@@ -12,6 +12,7 @@ def workbook(tmp_path):
     path = tmp_path / "boq.xlsx"
     book = Workbook()
     sheet = book.active
+    assert sheet is not None
     sheet.title = "BOQ"
     sheet.append(["Concrete works"])
     sheet.merge_cells("A1:F1")

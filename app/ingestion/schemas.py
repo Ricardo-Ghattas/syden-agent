@@ -34,7 +34,11 @@ class Source(Model):
             raise ValueError("Workbook source cannot have a PDF page or bounding box")
         if (self.row_start is None) != (self.row_end is None):
             raise ValueError("Row bounds must be supplied together")
-        if self.row_start is not None and self.row_end < self.row_start:
+        if (
+            self.row_start is not None
+            and self.row_end is not None
+            and self.row_end < self.row_start
+        ):
             raise ValueError("Row bounds are inverted")
         return self
 

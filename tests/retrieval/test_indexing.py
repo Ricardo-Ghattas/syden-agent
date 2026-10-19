@@ -55,6 +55,7 @@ def test_invalid_lines_duplicates_and_unsupported_formats_are_reported(
     ]
     assert [issue.line for issue in index.report.issues] == [1, 2, 3, 4, 5]
     response = search_documents(index, "2.3")
+    assert response.results[0].record.boq is not None
     assert response.results[0].record.boq.item == "2.3"
     assert not response.index_complete
     assert len(response.index_issues) == 5

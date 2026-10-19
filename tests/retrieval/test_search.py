@@ -23,7 +23,9 @@ def test_exact_item_codes_and_leading_zeroes_are_preserved(index):
     assert response.results[0].record_id == f"{B}:39"
     assert response.results[0].matched_fields[0] == "item_code"
     assert search_documents(index, "2.30").results[0].record_id == f"{B}:40"
-    assert search_documents(index, "003").results[0].record.boq.item == "003"
+    item = search_documents(index, "003").results[0].record.boq
+    assert item is not None
+    assert item.item == "003"
     assert f"{B}:41" not in {
         r.record_id for r in search_documents(index, "3", limit=100).results
     }
@@ -46,9 +48,11 @@ def test_terms_and_numerical_identifiers_remain_searchable(index):
 def test_prefix_queries_find_all_relevant_boq_rows(index):
     response = search_documents(index, "excav", {"kind": "boq_item"})
     assert response.total == 35
-    assert all(
-        "excavation" in r.record.boq.description.casefold() for r in response.results
-    )
+    for result in response.results:
+        assert result.record.boq is not None
+        description = result.record.boq.description
+        assert isinstance(description, str)
+        assert "excavation" in description.casefold()
     assert search_documents(index, "reinforc", {"kind": "boq_item"}).total == 2
 
 
@@ -80,6 +84,7 @@ def test_exhaustive_pagination_has_no_gaps_or_duplicates(index):
         if not response.has_more:
             assert response.next_offset is None
             break
+        assert response.next_offset is not None
         assert response.next_offset == offset + response.returned
         offset = response.next_offset
     assert len(found) == len(set(found)) == 35
@@ -121,8 +126,10 @@ def test_no_match_and_index_not_reparsed_for_each_query(index, monkeypatch):
 
 def test_search_results_cannot_mutate_the_cached_source(index):
     first = search_documents(index, "2.3")
+    assert first.results[0].record.boq is not None
     first.results[0].record.boq.quantity = 9999
     second = search_documents(index, "2.3")
+    assert second.results[0].record.boq is not None
     assert second.results[0].record.boq.quantity == -2.5
     assert second.results[0].record.source.sheet == "Structural"
     assert second.results[0].record.source.cell_range == "A38:F38"
