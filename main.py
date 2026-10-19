@@ -1,19 +1,26 @@
-"""Document processing entry point; independent of agent and retrieval code."""
+"""Document ingestion CLI with an optional single-question agent command."""
 
 import argparse
+import sys
 from pathlib import Path
 
 from app.ingestion.extractors.excel import SpreadsheetConversionError
 from app.ingestion.pipeline import process_document
 
 
-def main():
+def main(argv: list[str] | None = None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "ask":
+        from app.agents.__main__ import main as ask_main
+
+        ask_main(argv[1:])
+        return
     parser = argparse.ArgumentParser(
-        description="Convert PDF and XLSX documents into validated JSONL."
+        description="Convert PDF/XLSX into JSONL, or use 'ask QUESTION' to query documents."
     )
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     for path in args.files:
         try:
             output = process_document(path, args.data_dir)
