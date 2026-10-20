@@ -1,0 +1,124 @@
+"""Installed command routing and predictable user-level paths."""
+
+import argparse
+import os
+import sys
+import tomllib
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+def checkout_root() -> Path | None:
+    """Find this editable installation's checkout, independent of the caller's cwd."""
+    root = Path(__file__).resolve().parent.parent
+    try:
+        project = tomllib.loads((root / "pyproject.toml").read_text())
+    except (OSError, ValueError):
+        return None
+    metadata = project.get("project")
+    return (
+        root
+        if isinstance(metadata, dict) and metadata.get("name") == "syden-agent"
+        else None
+    )
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="syden",
+        description="Construction-document AI assistant. Run without a subcommand to open the interactive TUI.",
+        epilog="Commands: ask QUESTION, ingest FILE..., eval ..., chat (legacy line chat). Use COMMAND --help for options.",
+    )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        help="Explicit dotenv file (environment takes precedence)",
+    )
+    parser.add_argument("--processed-dir", type=Path, help="Processed JSONL collection")
+    parser.add_argument(
+        "--debug", action="store_true", help="Show sanitized diagnostics"
+    )
+    parser.add_argument("command", nargs="?", choices=["ask", "ingest", "eval", "chat"])
+    parser.add_argument("arguments", nargs=argparse.REMAINDER)
+    args = parser.parse_args(argv)
+    config_home = (
+        Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "syden"
+    )
+    checkout = checkout_root()
+    user_env = config_home / ".env"
+    env_file = args.env_file or (
+        user_env if user_env.is_file() or checkout is None else checkout / ".env"
+    )
+    if args.env_file and not env_file.is_file():
+        parser.error("The requested --env-file does not exist or is not a file.")
+    try:
+        load_dotenv(env_file, override=False)
+    except OSError:
+        parser.error("Cannot read the dotenv file; check its permissions.")
+    data_dir = (
+        Path(
+            os.environ.get(
+                "SYDEN_DATA_DIR",
+                checkout / "data" if checkout else Path.home() / ".local/share/syden",
+            )
+        )
+        .expanduser()
+        .resolve()
+    )
+    processed = (args.processed_dir or data_dir / "processed").expanduser().resolve()
+    if args.command == "eval":
+        from evals.runner import main as eval_main
+
+        eval_main(args.arguments)
+        return
+    if args.command in {"ask", "chat"}:
+        from app.agents.__main__ import main as agent_main
+
+        options = ["--processed-dir", str(processed)]
+        if args.debug:
+            options.append("--debug")
+        agent_main(
+            [*options, *(["--chat"] if args.command == "chat" else []), *args.arguments]
+        )
+        return
+    if args.command == "ingest":
+        from app.ingestion.pipeline import process_document
+
+        ingest = argparse.ArgumentParser(
+            prog="syden ingest", description="Process PDF or XLSX documents"
+        )
+        ingest.add_argument("files", nargs="+", type=Path)
+        ingest.add_argument("--data-dir", type=Path, default=data_dir)
+        values = ingest.parse_args(args.arguments)
+        try:
+            for path in values.files:
+                print(process_document(path.expanduser(), values.data_dir.expanduser()))
+        except (OSError, ValueError, RuntimeError):
+            ingest.exit(
+                1,
+                "Ingestion failed; check the input file, format, and output permissions.\n",
+            )
+        return
+    from app.agents.config import AgentConfig
+    from app.agents.llm import LLM, Settings
+    from app.agents.schemas import AgentError
+    from app.tui.app import SydenApp
+
+    try:
+        settings = Settings.from_env()
+        config = AgentConfig.from_env()
+        llm = LLM(settings)
+    except (AgentError, ValueError) as error:
+        message = (
+            str(error)
+            if isinstance(error, AgentError)
+            else "Invalid provider configuration."
+        )
+        parser.exit(1, f"{message}\nConfigure {env_file} or use --env-file PATH.\n")
+    try:
+        SydenApp(llm, config, processed, debug=args.debug).run()
+    except KeyboardInterrupt:
+        sys.exit(130)
+    finally:
+        llm.client.close()

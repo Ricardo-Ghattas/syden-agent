@@ -2,7 +2,9 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from copy import deepcopy
+from threading import Event
 from time import monotonic, sleep
 
 from openai.types.responses import Response, ResponseInputParam
@@ -163,6 +165,8 @@ def run_agent(
     session: ConversationSession | None = None,
     config: AgentConfig | None = None,
     max_tool_output_bytes: int | None = None,
+    cancelled: Event | None = None,
+    on_activity: Callable[[str], None] | None = None,
 ) -> AgentState:
     request = AgentRequest(question=question)
     config = config if config is not None else AgentConfig.from_env()
@@ -207,6 +211,13 @@ def run_agent(
     event("agent_started", session_id=state.session_id, execution_id=state.execution_id)
     try:
         while True:
+            if cancelled is not None and cancelled.is_set():
+                return terminate(
+                    state,
+                    registry,
+                    StopReason.CANCELLED,
+                    "Request cancelled; conversation context was not changed.",
+                )
             remaining = deadline - monotonic()
             if remaining <= 0:
                 return terminate(
@@ -258,6 +269,8 @@ def run_agent(
                 execution_id=state.execution_id,
                 iteration=state.iterations,
             )
+            if on_activity:
+                on_activity("preparing_answer" if final_request else "llm_requested")
             try:
                 response = llm.respond(
                     inputs,
@@ -291,6 +304,15 @@ def run_agent(
                 return terminate(
                     state, registry, StopReason.API_ERROR, str(error), failed=True
                 )
+            if cancelled is not None and cancelled.is_set():
+                return terminate(
+                    state,
+                    registry,
+                    StopReason.CANCELLED,
+                    "Request cancelled; conversation context was not changed.",
+                )
+            if on_activity:
+                on_activity("response_received")
             api_retries = 0
             if response.usage:
                 state.input_tokens += response.usage.input_tokens
@@ -346,6 +368,8 @@ def run_agent(
                     "Conversation context budget reached; no final answer was accepted.",
                 )
             if not calls:
+                if on_activity:
+                    on_activity("preparing_answer")
                 try:
                     answer = parse_answer(response, registry)
                 except AgentError as error:
@@ -379,6 +403,13 @@ def run_agent(
                         StopReason.INVALID_RESPONSE,
                         str(error),
                         failed=True,
+                    )
+                if cancelled is not None and cancelled.is_set():
+                    return terminate(
+                        state,
+                        registry,
+                        StopReason.CANCELLED,
+                        "Request cancelled; conversation context was not changed.",
                     )
                 insufficient = answer.answer_type == "insufficient"
                 finish(
@@ -437,6 +468,13 @@ def run_agent(
             state.transition(AgentStatus.AWAITING_TOOL_RESULTS)
             outputs: ResponseInputParam = []
             for call in calls:
+                if cancelled is not None and cancelled.is_set():
+                    return terminate(
+                        state,
+                        registry,
+                        StopReason.CANCELLED,
+                        "Request cancelled; conversation context was not changed.",
+                    )
                 if monotonic() >= deadline:
                     return terminate(
                         state,
@@ -460,6 +498,8 @@ def run_agent(
                 registry.remaining_bytes = min(registry.remaining_bytes, available)
                 signature = call_signature(call.name, call.arguments)
                 started = monotonic()
+                if on_activity and call.name in ARGUMENT_MODELS:
+                    on_activity(call.name)
                 output = (
                     registry.error(
                         "context_limit",
@@ -586,6 +626,8 @@ def ask(
     session: ConversationSession | None = None,
     config: AgentConfig | None = None,
     max_tool_output_bytes: int | None = None,
+    cancelled: Event | None = None,
+    on_activity: Callable[[str], None] | None = None,
 ) -> AgentResponse:
     state = run_agent(
         question,
@@ -594,6 +636,8 @@ def ask(
         session=session,
         config=config,
         max_tool_output_bytes=max_tool_output_bytes,
+        cancelled=cancelled,
+        on_activity=on_activity,
     )
     assert state.final_response is not None
     return state.final_response

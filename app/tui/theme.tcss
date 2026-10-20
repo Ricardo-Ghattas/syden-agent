@@ -1,0 +1,38 @@
+Screen {
+    background: #15181d;
+    color: #dce0e6;
+    layout: vertical;
+}
+#identity {
+    height: auto;
+    max-height: 5;
+    padding: 1 2 0 2;
+}
+#collection {
+    height: auto;
+    max-height: 3;
+    color: #949eac;
+    padding: 0 2 1 2;
+}
+#conversation {
+    height: 1fr;
+    padding: 0 2;
+    scrollbar-color: #536b8a;
+    scrollbar-background: #15181d;
+}
+.message { height: auto; margin-bottom: 1; }
+.role { height: 1; color: #91add2; text-style: bold; }
+.answer { height: auto; margin-bottom: 1; }
+.notice { height: auto; color: #aeb8c5; margin-bottom: 1; }
+#activity { height: 1; padding: 0 2; color: #91add2; }
+Composer {
+    height: 5;
+    min-height: 3;
+    max-height: 8;
+    margin: 0 1;
+    border: tall #465365;
+    background: #1a1f27;
+}
+Composer:focus { border: tall #7d9fc9; }
+Footer { background: #15181d; color: #aeb8c5; }
+Footer > .footer--key { background: #15181d; color: #91add2; }
