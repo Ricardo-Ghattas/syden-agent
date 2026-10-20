@@ -1,80 +1,275 @@
+<div align="center">
+
 # SYDEN
 
-SYDEN ingests construction PDFs and Excel BOQs, retrieves structured evidence, and uses a bounded agent to answer questions with original source references.
+### Ask construction documents. Get answers grounded in source evidence.
 
-## Setup and commands
+**A terminal-first AI agent for construction PDFs, specifications, and Excel Bills of Quantities (BOQs).**
 
-Python 3.12 or newer and `uv` are required. Install the locked dependencies:
+[![Deterministic checks](https://github.com/Ricardo-Ghattas/syden-agent/actions/workflows/checks.yml/badge.svg)](https://github.com/Ricardo-Ghattas/syden-agent/actions/workflows/checks.yml)
+![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
+![Interface](https://img.shields.io/badge/Interface-CLI%20%2B%20TUI-263238)
+![Status](https://img.shields.io/badge/Status-active%20development-44546A)
+
+[Quick start](#quick-start) · [Features](#features) · [Architecture](#architecture) · [Usage](#usage) · [Evaluation](#testing-and-evaluation)
+
+</div>
+
+---
+
+## Why SYDEN?
+
+Construction information lives across long specifications, PDF tables, and complex BOQ spreadsheets. Answering *“How much reinforcement steel is required for the raft foundation?”* often means finding the right file, identifying an exact item, and checking its unit and context.
+
+**SYDEN transforms these files into structured, searchable evidence and gives an LLM tools to investigate that evidence.** Answers carry references to original files, pages, worksheets, rows, and cell ranges when available.
+
+SYDEN is also an **AI agent engineering showcase**: it demonstrates typed tool calling, bounded orchestration, evidence validation, failure handling, and reproducible evaluation—not merely a chat wrapper.
+
+## Features
+
+| Capability | What it provides |
+| --- | --- |
+| **Terminal-native interface** | Textual TUI with conversation history, shortcuts, real activity indicators, and readable answers. |
+| **Integrated document import** | Select PDF/XLSX files from a built-in picker (`F3` or `/add`), or import paths directly. |
+| **Structured ingestion** | PDF text/tables and workbook contents normalized into validated JSONL with original source positions. |
+| **Evidence retrieval** | In-memory lexical search, exact-item lookup, filters, pagination, full records, and completeness warnings. |
+| **Tool-using agent** | Three strict, read-only retrieval tools callable by the LLM. |
+| **Traceable responses** | Validated answer format, source references, and explicit insufficient-evidence handling. |
+| **Execution safeguards** | Budgets for iterations, calls, retries, elapsed time and context; isolated conversations and cooperative cancellation. |
+| **Evaluation** | Deterministic tests, a synthetic offline benchmark, and opt-in live evaluation. |
+
+## Quick start
+
+**Requirements:** Python **3.12+** and [uv](https://docs.astral.sh/uv/).
 
 ```bash
+git clone https://github.com/Ricardo-Ghattas/syden-agent.git
+cd syden-agent
 uv sync --locked --group dev
-uv run python main.py path/to/specification.pdf path/to/boq.xlsx
+cp .env.example .env
+uv run syden
+```
+
+The TUI allows **local imports without an API key**. For AI questions, edit `.env`:
+
+```dotenv
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-5-mini
+```
+
+Choose a model/provider with function calling and structured JSON-schema support. Never commit credentials.
+
+### Use `syden` anywhere
+
+```bash
+uv tool install --editable .
+syden
+```
+
+If your shell cannot find `syden`, run `uv tool update-shell` and reopen the terminal. An editable installation reuses your checkout's data and `.env`; keep the checkout at its installed location. A non-editable install (`uv tool install .`) uses user-level configuration; see the [TUI guide](docs/tui.md).
+
+## Usage
+
+### Import construction documents
+
+Inside the TUI, press **F3** or enter `/add`, browse to PDFs/XLSX files, select them, then press **F2** to import. You can also use:
+
+```bash
+syden add "./documents/Project BOQ.xlsx" "./documents/specification.pdf"
+```
+
+Or type in the TUI:
+
+```text
+/add "./documents/Project BOQ.xlsx" "./documents/specification.pdf"
+```
+
+Importing makes **no LLM requests**. Original file bytes are archived under `data/raw/`; validated JSONL is stored under `data/processed/` by default. Repeated identical files are detected by content hash. Successful imports refresh the searchable collection without restarting SYDEN.
+
+### Ask questions
+
+```text
+How much reinforcement steel is required for the raft foundation?
+
+List concrete C35/45 items and show their quantities and units.
+
+Which specification clause describes the concrete cover requirements?
+
+Compare raft and slab quantities and cite the source BOQ rows.
+```
+
+A **synthetic example** of the information an answer can contain (not a verified real-project result):
+
+```text
+Question   What is the quantity of RC raft foundation concrete C35/45?
+
+Answer     820.75 m³
+
+Sources    Example.xlsx
+           Sheet: Concrete | Row: 8
+```
+
+Ask a single question or output a structured response:
+
+```bash
+syden ask "What is the quantity of item 001?"
+syden ask "What is the quantity of item 001?" --json
+```
+
+### TUI controls
+
+| Action | Shortcut / command |
+| --- | --- |
+| Add documents | `F3` or `/add` |
+| List imported documents | `/documents` |
+| Show latest answer references | `/sources` |
+| Send a question | `Enter` |
+| Insert a newline | `Ctrl+O` or `F4` |
+| New conversation | `Ctrl+N` or `/new` |
+| Clear conversation context | `Ctrl+L` or `/clear` |
+| Cancel an active operation | `Esc` |
+| Help | `/help` |
+| Exit | `Ctrl+Q` or `/exit` |
+
+Conversation memory lives in the current process and is subject to limits; it is not persisted between launches. Cancellation does not revoke requests already transmitted to an API provider.
+
+### Additional commands
+
+```bash
+syden chat                              # Legacy line-by-line chat
+syden ingest ./documents/boq.xlsx       # Import alias
+syden eval --mode offline               # Reproducible synthetic evaluation
+syden --processed-dir ./data/processed  # Choose a document collection
+syden --debug                           # Sanitized execution diagnostics
+
+# Direct retrieval debugging:
 uv run python -m app.retrieval search concrete --processed-dir data/processed
 ```
 
-For agent questions, set `OPENAI_API_KEY` and `OPENAI_MODEL` in the environment. See `.env.example` for provider settings and execution budgets. These commands make API requests:
+For configuration, file-picker behavior, import limits, cancellation semantics, and installation details, read [docs/tui.md](docs/tui.md).
 
-```bash
-uv run python main.py ask "What is the quantity of item 001?"
-uv run python main.py chat
+## Architecture
+
+SYDEN separates the **document pipeline**, **retrieval engine**, **tool boundary**, **agent**, and **terminal presentation**.
+
+```mermaid
+flowchart TD
+  A[PDF specifications / Excel BOQs] --> B[Ingestion: extract, normalize, validate]
+  B --> C[(Archived files + JSONL records)]
+  C --> D[In-memory lexical index]
+  D --> E[Read-only tools: search, get, list]
+  F[User via TUI / CLI] --> G[Bounded agent orchestration]
+  G <--> E
+  G <--> H[LLM via Responses API]
+  G --> I[Validated answer + source references + warnings]
+  I --> F
+  J[Synthetic fixtures] --> K[Offline / optional live evaluations]
+  D -.-> K
+  G -.-> K
 ```
 
-`/clear`, `/new`, and `/exit` manage in-memory conversations. Originals remain in `data/raw`; validated JSONL is written atomically to `data/processed`. These directories and `.env` are ignored by Git.
+### From question to evidence-backed answer
 
-For OpenRouter, put its key and model ID in `.env`:
+1. **Ingest:** Files are archived by content hash. PDF/Excel extractors produce normalized records with page/worksheet/row references, values, and available formula caches.
+2. **Index:** JSONL records populate a local lexical index with search, filtering, pagination, and full-record retrieval.
+3. **Orchestrate:** The LLM iteratively invokes validated, allowlisted tools within time, context, and tool-call limits.
+4. **Validate:** The agent validates the answer schema and checks cited locations against evidence exposed by its tools.
+5. **Render:** Rich and Textual show the answer, source locations, and uncertainty warnings; JSON is available through the CLI.
+
+**The three agent tools** are `search_documents`, `get_record`, and `list_documents`. They are read-only; they cannot run arbitrary shell commands or modify document contents.
+
+### Engineering decisions and trade-offs
+
+| Decision | Why it matters |
+| --- | --- |
+| **JSONL records with provenance** | Extraction stays independent of retrieval, while original locations remain inspectable. |
+| **Lexical search rather than embeddings** | Simple and explicit for BOQ item codes, identifiers and filters, at the cost of weaker synonym matching. |
+| **LLM-led numerical synthesis** | Questions about totals, quantities and amounts are handled in the agent's reasoning flow, not a deterministic spreadsheet calculator. The answer is not automatically guaranteed numerically correct. |
+| **Strict tool schemas** | Invalid arguments, unknown operations, and malformed responses are handled at controlled boundaries. |
+| **Bounded execution** | Iteration/tool/time/context budgets limit runaway loops and excessive retrieval. |
+| **Offline evaluation** | Agent contracts can be regression-tested without paid inference calls or private documents. |
+
+## Repository layout
+
+```text
+syden-agent/
+├── app/
+│   ├── cli.py            # Installed syden entry point and config
+│   ├── tui/              # Textual UI, file picker, theme
+│   ├── ingestion/        # PDF/XLSX extraction, normalization, archival, export
+│   ├── retrieval/        # Index, filtering, ranking and search
+│   ├── tools/            # Typed tool definitions and dispatch
+│   └── agents/           # Provider adapter, state, orchestration, rendering
+├── evals/                # Synthetic fixtures, graders and reporting
+├── tests/                # Unit, integration, TUI and CLI tests
+├── docs/                 # Detailed technical documentation
+├── data/
+│   ├── raw/              # Archived originals (not committed)
+│   └── processed/        # Normalized JSONL (not committed)
+├── main.py               # Backward-compatible legacy entry point
+├── pyproject.toml        # Dependencies and package metadata
+└── uv.lock               # Locked dependencies
+```
+
+**Stack:** Python · Textual · Rich · Pydantic · PyMuPDF · openpyxl · OpenAI SDK · uv · pytest · Ruff · GitHub Actions.
+
+## Configuration and data handling
+
+Use [`.env.example`](.env.example) for provider settings, retries, output limits, and `AGENT_*` execution budgets.
+
+An OpenAI-compatible endpoint such as OpenRouter can be configured with:
 
 ```dotenv
 OPENAI_API_KEY=your_openrouter_key
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
-OPENAI_MODEL=minimax/minimax-m3.1-flash:free
-OPENAI_REASONING_EFFORT=low
-OPENAI_MAX_OUTPUT_TOKENS=8192
+OPENAI_MODEL=your_tool_capable_model_id
 ```
 
-Run `uv run --env-file .env python main.py chat`. The SDK reads the custom base URL; SYDEN detects OpenRouter and sends conversation history with `store=false`, without server-side response chaining. Only assistant messages and tool exchanges are retained for replay, within the existing session limits. OpenRouter receives tool schemas with optional search controls; application validation still enforces allowed fields, record kinds, and bounds. The chosen model/provider must support function calling and JSON-schema outputs. Debugging smoke tests do not establish live answer accuracy.
+For `syden`, configuration precedence is: explicit `--env-file`, then `~/.config/syden/.env` if present, then the editable checkout's `.env`. Existing environment variables take precedence. `SYDEN_DATA_DIR` overrides the default local document directory.
 
-## Architecture
-
-```mermaid
-flowchart LR
-    Raw[PDF / XLSX] --> Ingestion[Extraction and normalization]
-    Ingestion --> JSONL[Validated JSONL with provenance]
-    JSONL --> Index[In-memory lexical index]
-    Index --> Tools[Search, get record, list documents]
-    User[Question and session] --> Agent[Bounded agent loop]
-    Agent <--> API[OpenAI Responses API]
-    Agent <--> Tools
-    Agent --> Answer[Structured answer and citations]
-    Index --> Evals[Independent evaluation graders]
-    Answer --> Evals
-    Evals --> Reports[JSON and Markdown reports]
-```
-
-- `app/ingestion`: archives source bytes by SHA-256, extracts PDF text/tables and workbook cells/regions, and preserves numerical values, formulas, locations, and warnings.
-- `app/retrieval`: validates JSONL, builds a lexical index, applies exact filters, ranks matches, and exposes pagination and incomplete-index diagnostics.
-- `app/tools`: validates model arguments and dispatches three allowlisted, read-only operations. Returned evidence has original filename/page/sheet/row references and completeness flags.
-- `app/agents`: calls the provider, executes iterative retrieval, validates structured answers and supplied citations, isolates sessions, and enforces request/tool/time/context budgets. Arithmetic remains LLM reasoning.
-- `evals`: independently labelled synthetic fixtures, objective graders, offline scripted provider responses, optional live execution, timing, reports, and regression comparison. Production application modules do not import evaluation logic; the CLI loads it only for `eval`.
+**Privacy:** Local import does not contact the LLM provider. **Asking an AI question can send retrieved excerpts of your documents to the configured API endpoint.** Review that provider's data-handling terms before using sensitive information.
 
 ## Testing and evaluation
-
-No API credentials or network access are required for the deterministic suite:
 
 ```bash
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest -q
-uv run python main.py eval --mode offline
+uv run syden eval --mode offline
 ```
 
-The default evaluation contains **54 explicitly synthetic cases**: 14 retrieval cases and 40 agent cases. It uses a committed corpus of 19 synthetic records, never the private files in `data/`. Offline responses are fixed transcripts; retrieval, tools, argument validation, orchestration, and grading actually execute. Passing these scripts does **not** measure live model accuracy.
+The committed benchmark contains **54 synthetic cases** (14 retrieval + 40 agent cases), operating on **19 synthetic records**. Offline evaluation uses fixed provider transcripts; real tool validation, retrieval, orchestration and grading still run. It can assess tool behavior, citation support, numerical/unit assertions, abstention, and failure handling without API credentials.
 
-Reports are written to `reports/latest.json` and `reports/latest.md`. Reports are ignored by Git. See [evaluation documentation](docs/evaluation.md) for schemas, metrics, thresholds, failure diagnosis, limitations, and paid live opt-in. GitHub Actions runs Ruff, pytest, and offline evaluation without secrets.
+Results are generated at `reports/latest.json` and `reports/latest.md`. GitHub Actions runs the deterministic checks on push and pull requests.
 
-## End-to-end example
+Optional live-model evaluation must be explicitly authorized and may incur costs:
 
-Ingest a BOQ with `main.py path/to/boq.xlsx`; the pipeline archives its bytes and writes JSONL records containing quantities, units, rates, amounts, and worksheet coordinates. Search `001` using `app.retrieval`, then ask the agent about that item. The agent can inspect the full record and cite its worksheet and row. An independently labelled evaluation case checks the answer against that record. The test `test_raw_workbook_to_ingestion_retrieval_agent_and_grading` exercises this whole path with a generated synthetic workbook and an offline provider.
+```bash
+uv run syden eval --mode live --allow-paid --output-dir reports/live
+```
 
-## Limits
+See [Evaluation & reliability](docs/evaluation.md) for case schemas, metrics, diagnostics, regression comparison and evidence limitations.
 
-Retrieval is lexical and has known synonym gaps. PDF heading detection is heuristic; scanned PDFs require OCR that is not implemented. Workbook formula results require available cached values and may be stale. A valid citation establishes provenance, not semantic truth. Numerical answers and document-scope completeness still need independent checking. Model accuracy on real documents and paid API latency remain unmeasured until authorized live evaluations are run. The suite does not establish production readiness.
+> **Evaluation scope:** Passing scripted synthetic cases is not proof of live-model correctness, real-document accuracy, or production readiness.
+
+## Known limitations
+
+- **Scanned documents:** OCR is not implemented; image-only PDFs can lack usable extracted text.
+- **Document structure:** Heading detection is heuristic, and spreadsheet cached formula results can be absent or outdated.
+- **Search:** Lexical retrieval may miss synonyms or paraphrases; no vector index is included.
+- **Numerical reasoning:** The agent reasons over retrieved values rather than invoking a deterministic BOQ calculator. Totals and amounts require independent verification.
+- **Provenance:** Valid citations show where evidence came from, not that an interpretation or computation is necessarily true.
+- **Interaction:** Conversation state is in-memory, and the TUI presents validated final answers rather than streaming partial model output.
+- **Operational scope:** This is an engineering project, not a certified construction cost or quantity verification system.
+
+**Verify units, quantities, rates, document revisions, exclusions, and totals against authoritative project documents before using answers for engineering or commercial decisions.**
+
+---
+
+<div align="center">
+
+Built to explore **reliable tool-using agents**, **document intelligence**, and **evidence-grounded answers**.
+
+[Source code](https://github.com/Ricardo-Ghattas/syden-agent) · [TUI guide](docs/tui.md) · [Evaluation methodology](docs/evaluation.md)
+
+</div>
