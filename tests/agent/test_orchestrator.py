@@ -13,10 +13,77 @@ from .conftest import answer, call, reply, search_args
 B = "b" * 64
 
 
+def test_evidence_budget_error_finishes_with_available_sources(index, llm, client):
+    index.entries[f"{B}:40"].record.text = "oversized " * 1000
+    client.responses.create.side_effect = [
+        reply(calls=[call(arguments=search_args(), call_id="first")]),
+        reply(
+            calls=[
+                call("get_record", {"record_id": f"{B}:40"}),
+                call("list_documents", call_id="rest"),
+            ]
+        ),
+        reply(
+            answer=answer(
+                answer_type="document",
+                sources=[cited(index)],
+                text="The cited item is available; this is a limited overview.",
+            )
+        ),
+    ]
+    state = run_agent(
+        "Give an overview",
+        index,
+        llm,
+        config=AgentConfig(max_tool_output_bytes=7000, max_tool_failures=1),
+    )
+    assert state.status == AgentStatus.COMPLETED
+    assert state.tool_calls == 3
+    assert client.responses.create.call_args.kwargs["tool_choice"] == "none"
+    assert client.responses.create.call_args.kwargs["tools"] == []
+    assert any(outcome.error_code == "context_limit" for outcome in state.outcomes)
+
+
+def test_final_answer_mode_cannot_execute_more_tools(index, llm, client):
+    index.entries[f"{B}:39"].record.text = "oversized " * 1000
+    client.responses.create.side_effect = [
+        reply(calls=[call("get_record", {"record_id": f"{B}:39"})]),
+        reply(calls=[call("list_documents")]),
+    ]
+    state = run_agent(
+        "Give an overview", index, llm, config=AgentConfig(max_tool_output_bytes=2048)
+    )
+    assert state.status == AgentStatus.FAILED
+    assert state.tool_calls == 1
+    assert state.stop_reason.value == "invalid_response"
+
+
 def cited(index, record_id=f"{B}:39"):
     record = index.get_record(record_id)
     assert record is not None
     return reference(record).model_dump(mode="json")
+
+
+def test_last_request_is_reserved_for_an_answer_with_exact_citation_options(
+    index, llm, client
+):
+    client.responses.create.side_effect = [
+        reply(calls=[call(arguments=search_args())]),
+        reply(calls=[call("list_documents")]),
+        reply(answer=answer(answer_type="document", sources=[cited(index)])),
+    ]
+    state = run_agent(
+        "Summarize this file", index, llm, config=AgentConfig(max_iterations=3)
+    )
+    assert state.status == AgentStatus.COMPLETED
+    assert state.iterations == 3
+    request = client.responses.create.call_args.kwargs
+    assert request["tools"] == []
+    assert request["tool_choice"] == "none"
+    assert any(
+        "catalogue of untrusted source metadata" in item.get("content", "")
+        for item in request["input"]
+    )
 
 
 def test_observations_drive_multidocument_search_then_full_record(index, llm, client):

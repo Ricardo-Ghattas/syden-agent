@@ -1,7 +1,10 @@
 """Centralized OpenAI Responses configuration and safe provider failure handling."""
 
+import json
 import logging
 import os
+from typing import Literal
+from urllib.parse import urlsplit
 
 from openai import (
     APIConnectionError,
@@ -15,7 +18,7 @@ from openai import (
 from openai.types.responses import Response, ResponseInputParam
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
-from app.tools.schemas import TOOL_DEFINITIONS
+from app.tools.schemas import ARGUMENT_MODELS, TOOL_DEFINITIONS
 
 from .prompts import DEVELOPER_PROMPT, SYSTEM_PROMPT
 from .schemas import AgentError, AnswerContent
@@ -30,6 +33,10 @@ class Settings(BaseModel):
     timeout: float = Field(default=60, gt=0, le=600)
     max_retries: int = Field(default=1, ge=0, le=2)
     max_output_tokens: int = Field(default=4096, ge=256, le=16384)
+    store_responses: bool = True
+    reasoning_effort: (
+        Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] | None
+    ) = None
 
     @classmethod
     def from_env(cls):
@@ -48,10 +55,13 @@ class Settings(BaseModel):
                 timeout=float(os.getenv("OPENAI_TIMEOUT_SECONDS", "60")),
                 max_retries=int(os.getenv("OPENAI_MAX_RETRIES", "1")),
                 max_output_tokens=int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "4096")),
+                reasoning_effort=os.getenv("OPENAI_REASONING_EFFORT") or None,
+                store_responses=urlsplit(os.getenv("OPENAI_BASE_URL", "")).hostname
+                != "openrouter.ai",
             )
         except (ValueError, ValidationError) as error:
             raise AgentError(
-                "Invalid OpenAI timeout, retry, or token configuration."
+                "Invalid OpenAI timeout, retry, token, or reasoning configuration."
             ) from error
 
 
@@ -76,6 +86,31 @@ class LLM:
         final: bool = False,
         timeout: float | None = None,
     ) -> Response:
+        tools = TOOL_DEFINITIONS
+        if not self.settings.store_responses:
+            # Keep optional controls optional for OpenRouter's model adapters.
+            tools = [
+                {
+                    **tool,
+                    "strict": False,
+                    "parameters": ARGUMENT_MODELS[tool["name"]].model_json_schema(),
+                }
+                for tool in TOOL_DEFINITIONS
+            ]
+        instructions = DEVELOPER_PROMPT
+        if not self.settings.store_responses:
+            instructions += (
+                "\nFor the final answer, emit only JSON matching this schema, without Markdown fences: "
+                + json.dumps(AnswerContent.model_json_schema(), separators=(",", ":"))
+            )
+        request_input = [{"role": "developer", "content": instructions}, *inputs]
+        if final:
+            request_input.append(
+                {
+                    "role": "developer",
+                    "content": "For this response, retrieval is finished. Return a concise final structured answer using available evidence and state its limitations. Cite only sources supporting claims you actually make. If evidence is insufficient, say so. Do not request tools.",
+                }
+            )
         try:
             client = (
                 self.client
@@ -87,12 +122,14 @@ class LLM:
             response = client.responses.create(
                 model=self.settings.model,
                 instructions=SYSTEM_PROMPT,
-                input=[{"role": "developer", "content": DEVELOPER_PROMPT}, *inputs],
-                tools=TOOL_DEFINITIONS,
+                input=request_input,
+                tools=[] if final else tools,
                 tool_choice="none" if final else "auto",
                 parallel_tool_calls=True,
-                previous_response_id=previous_response_id,
-                store=True,
+                previous_response_id=previous_response_id
+                if self.settings.store_responses
+                else None,
+                store=self.settings.store_responses,
                 truncation="disabled",
                 max_output_tokens=self.settings.max_output_tokens,
                 text={
@@ -103,6 +140,11 @@ class LLM:
                         "schema": AnswerContent.model_json_schema(),
                     }
                 },
+                **(
+                    {"reasoning": {"effort": self.settings.reasoning_effort}}
+                    if self.settings.reasoning_effort
+                    else {}
+                ),
             )
         except AuthenticationError as error:
             logger.warning("OpenAI authentication failed")

@@ -24,6 +24,7 @@ class ConversationTurn(Model):
 class ConversationSession(Model):
     session_id: str = Field(default_factory=lambda: uuid4().hex)
     previous_response_id: str | None = None
+    response_input: list[dict] = Field(default_factory=list, repr=False)
     history: list[ConversationTurn] = Field(default_factory=list, repr=False)
     sources: list[SourceReference] = Field(default_factory=list, repr=False)
     warnings: list[str] = Field(default_factory=list, repr=False)
@@ -34,6 +35,7 @@ class ConversationSession(Model):
 
     def clear(self) -> None:
         self.previous_response_id = None
+        self.response_input.clear()
         self.history.clear()
         self.sources.clear()
         self.evidence.clear()

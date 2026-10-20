@@ -15,6 +15,7 @@ from .pdf_models import (
 )
 
 
+# * Extract text, tables, headings, and page locations from a PDF file.
 def read_pdf(path: Path) -> ConvertedDocument:
     """Return ordered source blocks with page numbers and bounding boxes.
 
@@ -23,6 +24,7 @@ def read_pdf(path: Path) -> ConvertedDocument:
     blocks = []
     warnings = []
     with pymupdf.open(path) as document:
+        # * Check that the PDF is unencrypted and does not require a password.
         if not document.is_pdf or document.needs_pass:
             raise ValueError("Expected an unencrypted PDF.")
         # Bookmark levels provide explicit heading evidence before font-based inference.
@@ -30,6 +32,7 @@ def read_pdf(path: Path) -> ConvertedDocument:
             (page, " ".join(title.split())): min(level, 6)
             for level, title, page in document.get_toc()
         }
+        # * Extract tables and text blocks from each page, preserving order and bounding boxes.
         for page_index in range(len(document)):
             page = document.load_page(page_index)
             page_number = page_index + 1
@@ -38,6 +41,7 @@ def read_pdf(path: Path) -> ConvertedDocument:
                 raise ValueError(f"Table extraction failed on page {page_number}.")
             tables = finder.tables
             positioned = []
+            # * Extract tables first, then text blocks, preserving order by top-left coordinates.
             for table in tables:
                 header = cast(TableHeader, table.header)
                 # Read by detected cell bounds: table.extract() can reorder decimal punctuation.
@@ -96,6 +100,7 @@ def read_pdf(path: Path) -> ConvertedDocument:
                 dict[str, Any],
                 page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT, sort=True),
             )
+            # * Extract text blocks, skipping those that overlap with detected tables.
             for block in layout["blocks"]:
                 for line in block.get("lines", ()):
                     spans = line["spans"]

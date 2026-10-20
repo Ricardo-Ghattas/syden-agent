@@ -32,6 +32,22 @@ def test_native_schemas_are_strict_and_nullable():
         assert_strict(tool["parameters"])
     assert names == {"search_documents", "get_record", "list_documents"}
     assert_strict(AnswerContent.model_json_schema())
+    search = next(
+        tool for tool in TOOL_DEFINITIONS if tool["name"] == "search_documents"
+    )
+    kinds = search["parameters"]["$defs"]["SearchFilters"]["properties"]["kind"][
+        "anyOf"
+    ][0]["enum"]
+    assert set(kinds) == {
+        "document",
+        "sheet",
+        "region",
+        "heading",
+        "paragraph",
+        "table",
+        "row",
+        "boq_item",
+    }
 
 
 @pytest.mark.parametrize(
@@ -103,6 +119,103 @@ def test_each_registered_operation_preserves_values_and_sources(index):
     assert missing["record"] is None
     assert missing["citation"] is None
     assert not missing["found"]
+
+
+def test_optional_search_controls_use_safe_defaults(index):
+    payload = json.loads(
+        ToolRegistry(index).execute("search_documents", '{"query":"2.3"}')
+    )
+    assert payload["ok"]
+    assert payload["data"]["offset"] == 0
+    assert payload["data"]["returned"] == 1
+
+
+def test_validation_error_explains_bounds_without_echoing_private_arguments(index):
+    arguments = search_args(
+        query="PRIVATE QUERY", limit=101, **{"PRIVATE FIELD": "PRIVATE VALUE"}
+    )
+    payload = json.loads(
+        ToolRegistry(index).execute("search_documents", json.dumps(arguments))
+    )
+    assert not payload["ok"]
+    assert "limit" in payload["error"]["message"]
+    assert "100" in payload["error"]["message"]
+    assert "PRIVATE" not in json.dumps(payload)
+
+
+def test_invalid_filter_types_get_specific_correction_feedback(index):
+    payload = json.loads(
+        ToolRegistry(index).execute(
+            "search_documents",
+            json.dumps(search_args(filters={"kind": "paragraphs", "page": "all"})),
+        )
+    )
+    message = payload["error"]["message"]
+    assert "filters.kind" in message
+    assert "paragraph" in message
+    assert "filters.page" in message
+    assert "integer" in message
+    assert "JSON null" in message
+
+
+def test_numeric_page_strings_preserve_the_requested_filter(index):
+    payload = json.loads(
+        ToolRegistry(index).execute(
+            "search_documents",
+            json.dumps(
+                search_args(
+                    query="35 MPa",
+                    filters={"format": "pdf", "page": "2", "kind": " paragraph "},
+                )
+            ),
+        )
+    )
+    assert payload["ok"]
+    assert payload["data"]["filters"]["page"] == 2
+    assert payload["data"]["results"]
+    assert all(
+        item["record"]["source"]["page"] == 2 for item in payload["data"]["results"]
+    )
+
+
+@pytest.mark.parametrize("page", [True, False, 2.5, "2.5", "0", "-1"])
+def test_page_compatibility_keeps_invalid_values_rejected(index, page):
+    payload = json.loads(
+        ToolRegistry(index).execute(
+            "search_documents", json.dumps(search_args(filters={"page": page}))
+        )
+    )
+    assert not payload["ok"]
+    assert payload["error"]["code"] == "invalid_arguments"
+
+
+def test_tool_null_controls_are_normalized_without_changing_named_worksheets(index):
+    payload = json.loads(
+        ToolRegistry(index).execute(
+            "search_documents",
+            json.dumps(
+                search_args(
+                    query="excavation",
+                    filters={
+                        "format": "xlsx",
+                        "document_id": "null",
+                        "page": "None",
+                        "kind": "boq_item",
+                    },
+                )
+            ),
+        )
+    )
+    assert payload["ok"]
+    assert payload["data"]["filters"]["document_id"] is None
+    assert payload["data"]["filters"]["page"] is None
+    assert payload["data"]["results"]
+    from app.tools.schemas import SearchArguments
+
+    parsed = SearchArguments.model_validate_json(
+        json.dumps(search_args(filters={"sheet": "None"}))
+    )
+    assert parsed.filters.sheet == "None"
 
 
 def test_exhaustive_search_uses_existing_pagination(index):

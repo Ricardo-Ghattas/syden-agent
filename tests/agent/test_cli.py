@@ -4,8 +4,35 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.agents.__main__ import main
+from app.agents.__main__ import display, main
 from app.agents.schemas import AgentResponse, SourceReference
+
+
+def test_display_groups_matching_locations_but_json_keeps_record_citations(
+    index, capsys
+):
+    from app.tools.registry import reference
+
+    records = [
+        entry.record
+        for entry in index.entries.values()
+        if entry.record.source.format == "pdf" and entry.record.source.page is not None
+    ]
+    first = reference(records[0])
+    same_page = first.model_copy(update={"record_id": "another-record"})
+    other_page = first.model_copy(
+        update={"record_id": "different-page", "page": first.page + 1}
+    )
+    response = AgentResponse(
+        answer="Summary",
+        answer_type="document",
+        sources=[first, same_page, other_page],
+        warnings=[],
+    )
+    display(response)
+    assert capsys.readouterr().out.count("Source:") == 2
+    display(response, as_json=True)
+    assert len(json.loads(capsys.readouterr().out)["sources"]) == 3
 
 
 def test_cli_answer_sources_json_and_close(monkeypatch, capsys):

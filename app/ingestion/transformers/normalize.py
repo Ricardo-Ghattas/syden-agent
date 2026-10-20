@@ -53,6 +53,7 @@ def _boq(values, columns):
     return BoqItem(**data)
 
 
+# * Normalize a PDF or workbook into validated records with source metadata.
 def normalize(
     document: ConvertedDocument | SemanticWorkbook, source: Source
 ) -> list[Record]:

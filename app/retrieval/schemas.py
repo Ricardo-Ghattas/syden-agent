@@ -1,10 +1,10 @@
 """Validated retrieval inputs, diagnostics, and citation-bearing outputs."""
 
-from typing import Literal, get_args
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.ingestion.schemas import Record
+from app.ingestion.schemas import Record, RecordKind
 
 
 class Model(BaseModel):
@@ -18,8 +18,13 @@ class SearchFilters(Model):
     sheet: str | None = None
     section: str | None = None
     item_code: str | None = None
-    kind: str | None = None
+    kind: RecordKind | None = None
     page: int | None = Field(default=None, ge=1)
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def trim_kind(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator("filename", "sheet", "section", "item_code", "kind")
     @classmethod
@@ -27,15 +32,6 @@ class SearchFilters(Model):
         if value is not None and not value.strip():
             raise ValueError("Filter values must not be blank")
         return value.strip() if value is not None else None
-
-    @field_validator("kind")
-    @classmethod
-    def known_kind(cls, value: str | None) -> str | None:
-        if value is not None and value not in get_args(
-            Record.model_fields["kind"].annotation
-        ):
-            raise ValueError("Unknown record kind")
-        return value
 
 
 class RankingWeights(Model):

@@ -53,6 +53,7 @@ def test_missing_environment_is_clear(monkeypatch, missing):
         ("OPENAI_MAX_RETRIES", "99"),
         ("OPENAI_MAX_RETRIES", "wrong"),
         ("OPENAI_MAX_OUTPUT_TOKENS", "-1"),
+        ("OPENAI_REASONING_EFFORT", "invalid"),
     ],
 )
 def test_invalid_configuration(monkeypatch, name, value):

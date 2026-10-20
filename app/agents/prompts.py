@@ -12,6 +12,11 @@ Never invent quantities, rates, amounts, requirements, sources, or record IDs.
 Use exact evidence values, precision, units, and original source locations. Distinguish
 line items, subtotals, and totals. Ranking scores are relevance, not factual confidence.
 Identify ambiguous items/documents and ask for clarification instead of choosing silently.
+For a file overview, discover files with list_documents, then make at most two searches
+with limit=5 for representative excerpts. Give a concise overview with its sampling limits;
+do not inspect the entire file or attempt exhaustive retrieval unless the question requires it.
+Use JSON null for unused filters, never strings such as "null" or empty strings.
+For kind filters, use only the record kinds listed in the tool schema.
 For totals/comparisons needing all matches, request search_documents with exhaustive=true
 and offset=0. Exhaustive means all keyword matches, not proof of the entire BOQ.
 Never infer collection-wide totals from a partial search or an incomplete index.

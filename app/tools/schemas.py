@@ -2,7 +2,7 @@
 
 from openai import pydantic_responses_function_tool
 from openai.types.responses import ToolParam
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.retrieval.schemas import Model, SearchFilters
 
@@ -14,20 +14,42 @@ class SearchArguments(Model):
         description="Keywords, exact item code, or quoted phrase; not a full natural-language question.",
     )
     filters: SearchFilters | None = Field(
-        description="AND-composed source/BOQ filters; null for no filtering."
+        default=None,
+        description="AND-composed source/BOQ filters; null for no filtering.",
     )
     limit: int = Field(
+        default=10,
         ge=1,
         le=100,
         description="Page size (1–100); exhaustive mode visits subsequent pages automatically.",
     )
     offset: int = Field(
+        default=0,
         ge=0,
         description="First matching result to return; use 0 for exhaustive numerical questions.",
     )
     exhaustive: bool = Field(
-        description="Retrieve all keyword matches through existing pagination within the context budget. Inspect complete and warnings before using totals."
+        default=False,
+        description="Retrieve all keyword matches through existing pagination within the context budget. Inspect complete and warnings before using totals.",
     )
+
+    @field_validator("filters", mode="before")
+    @classmethod
+    def normalize_filters(cls, value):
+        # Provider tool calls sometimes encode nullable controls as strings.
+        if isinstance(value, str) and value.strip().casefold() in {"", "null", "none"}:
+            return None
+        if isinstance(value, dict):
+            value = dict(value)
+            for field in ("format", "document_id", "kind", "page"):
+                item = value.get(field)
+                if isinstance(item, str):
+                    item = item.strip()
+                    if item.casefold() in {"", "null", "none"}:
+                        value[field] = None
+                    elif field == "page" and item.isdecimal():
+                        value[field] = int(item)
+        return value
 
 
 class GetArguments(Model):

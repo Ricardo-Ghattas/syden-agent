@@ -18,15 +18,23 @@ def process_document(path: str | Path, data_dir: str | Path = "data") -> Path:
     and leave any previous output intact.
     """
     path = Path(path).resolve(strict=True)
+
+    # * Check that the file is a PDF or XLSX
     suffix = path.suffix.casefold()
     if not path.is_file() or suffix not in {".pdf", ".xlsx"}:
         raise ValueError("Supported inputs are PDF (.pdf) and Excel (.xlsx) files.")
     data_dir = Path(data_dir).resolve()
+
+    # * Archive the original file and in data/raw
     raw_path, digest = archive_original(path, data_dir / "raw")
+
+    # * Read the document and extract its evidence.
     if suffix == ".pdf":
         document = read_pdf(raw_path)
     else:
         document = SpreadsheetConverter().convert(raw_path)
+
+    # * Create the source metadata. Record the filename, file format, archive location, and SHA-256 hash.
     source = Source(
         filename=path.name,
         raw_path=raw_path.relative_to(data_dir).as_posix(),
@@ -34,6 +42,6 @@ def process_document(path: str | Path, data_dir: str | Path = "data") -> Path:
         format="pdf" if suffix == ".pdf" else "xlsx",
     )
     records = normalize(document, source)
-    # Extractors see the archived name; expose the caller's original filename in the document record.
+    # * Extractors see the archived name; expose the caller's original filename in the document record.
     records[0].text = path.name
     return export_jsonl(records, data_dir / "processed" / f"{raw_path.stem}.jsonl")

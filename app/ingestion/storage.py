@@ -6,6 +6,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 
+# * Compute the SHA-256 hash of a file's bytes.
 def source_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -14,6 +15,7 @@ def source_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+# * Archive the original file and return its path and SHA-256 digest.
 def archive_original(path: Path, raw_dir: Path) -> tuple[Path, str]:
     """Return the archived snapshot path and its SHA-256 digest.
 

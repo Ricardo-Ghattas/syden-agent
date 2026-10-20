@@ -19,6 +19,7 @@ def display(response: AgentResponse, *, as_json: bool = False) -> None:
         print(response.model_dump_json(indent=2))
         return
     print(response.answer)
+    displayed = set()
     for source in response.sources:
         location = [source.filename]
         if source.page is not None:
@@ -27,7 +28,11 @@ def display(response: AgentResponse, *, as_json: bool = False) -> None:
             location.append(f"sheet {source.sheet}")
         if source.row_start is not None:
             location.append(f"rows {source.row_start}–{source.row_end}")
-        print("Source: " + ", ".join(location))
+        label = ", ".join(location)
+        key = (source.document_id, label)
+        if key not in displayed:
+            print("Source: " + label)
+            displayed.add(key)
     for warning in response.warnings:
         print(f"Warning: {warning}")
     if response.stop_reason is not None:

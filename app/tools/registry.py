@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.agents.schemas import SourceReference
 from app.ingestion.schemas import Record
 from app.retrieval import DocumentIndex, search_documents
+from app.retrieval.schemas import SearchFilters
 
 from .schemas import ARGUMENT_MODELS, GetArguments, ListArguments, SearchArguments
 
@@ -80,10 +81,32 @@ class ToolRegistry:
                 )
             try:
                 args = ARGUMENT_MODELS[name].model_validate_json(arguments)
-            except ValidationError:
+            except ValidationError as error:
+                known_fields = set(ARGUMENT_MODELS[name].model_fields) | set(
+                    SearchFilters.model_fields
+                )
+                problems = []
+                for issue in error.errors(
+                    include_input=False, include_context=False, include_url=False
+                )[:5]:
+                    field = (
+                        ".".join(
+                            str(part) if part in known_fields else "?"
+                            for part in issue["loc"]
+                        )
+                        or "arguments"
+                    )
+                    message = (
+                        issue["msg"]
+                        if issue["type"] != "json_invalid"
+                        else "Provide a valid JSON object"
+                    )
+                    problems.append(f"{field}: {message}")
                 return self.error(
                     "invalid_arguments",
-                    "Arguments must match the tool's strict JSON schema.",
+                    "Invalid arguments: "
+                    + "; ".join(problems)
+                    + ". Use JSON null for unused filters. Correct these fields before retrying.",
                 )
             self.check_deadline()
             data, sources = self.handlers[name](args)

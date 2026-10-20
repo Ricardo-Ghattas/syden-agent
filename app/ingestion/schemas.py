@@ -7,6 +7,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 Scalar = str | bool | int | float | Decimal | datetime | date | time | None
+RecordKind = Literal[
+    "document", "sheet", "region", "heading", "paragraph", "table", "row", "boq_item"
+]
 
 
 class Model(BaseModel):
@@ -98,16 +101,7 @@ class Record(Model):
     id: str = Field(min_length=1)
     document_id: str = Field(pattern=r"^[0-9a-f]{64}$")
     order_index: int = Field(ge=1)
-    kind: Literal[
-        "document",
-        "sheet",
-        "region",
-        "heading",
-        "paragraph",
-        "table",
-        "row",
-        "boq_item",
-    ]
+    kind: RecordKind
     source: Source
     parent_id: str | None = None
     semantic_path: list[str] = Field(default_factory=list)
