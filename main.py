@@ -1,4 +1,4 @@
-"""Document ingestion CLI with single-question and conversational agent commands."""
+"""Document ingestion, agent interaction, and evaluation commands."""
 
 import argparse
 import sys
@@ -10,13 +10,18 @@ from app.ingestion.pipeline import process_document
 
 def main(argv: list[str] | None = None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "eval":
+        from evals.runner import main as eval_main
+
+        eval_main(argv[1:])
+        return
     if argv and argv[0] in {"ask", "chat"}:
         from app.agents.__main__ import main as ask_main
 
         ask_main(argv[1:] if argv[0] == "ask" else ["--chat", *argv[1:]])
         return
     parser = argparse.ArgumentParser(
-        description="Convert PDF/XLSX into JSONL, or use 'ask QUESTION' or 'chat' to query documents."
+        description="Convert PDF/XLSX into JSONL; use 'ask QUESTION' or 'chat' to query, or 'eval' to evaluate."
     )
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--data-dir", type=Path, default=Path("data"))

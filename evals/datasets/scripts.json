@@ -1,0 +1,899 @@
+{
+  "foundation_quantity": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "foundation_rate": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "rate: 120.50 USD/m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "foundation_amount": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "amount: 24100 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "excavation_quantity": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 300 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "excavation_rate": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "rate: 12.50 USD/m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "excavation_amount": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "amount: 3750 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "zero_quantity": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:9"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 0 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:9"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "negative_quantity": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:8"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: -2.5 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:8"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "decimal_precision": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:10"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 0.125 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:10"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "compare_amounts": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:5"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "minimum: 2100 USD\nmaximum: 3750 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:5"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "multi_item_total": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:5"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "total: 5850 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:5"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "section_subtotal": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:3"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "subtotal: 30600 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:3"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "exclude_subtotal_row": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:3"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:11"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "total: 30600 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:3"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "deduplicate_overlap": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:12"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "mixed_units": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:6"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "Cannot add volume and mass; clarify the measure.",
+      "sources": [],
+      "answer_type": "insufficient"
+    }
+  ],
+  "missing_information": [
+    {
+      "calls": [
+        {
+          "name": "search_documents",
+          "arguments": {
+            "query": "unobtainium",
+            "filters": {
+              "kind": "boq_item"
+            },
+            "limit": 2,
+            "offset": 0,
+            "exhaustive": false
+          }
+        }
+      ]
+    },
+    {
+      "answer": "Item absent; provide its BOQ.",
+      "sources": [],
+      "answer_type": "insufficient"
+    }
+  ],
+  "ambiguous_item": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:13"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "Specify Structural or Revised.",
+      "sources": [],
+      "answer_type": "insufficient"
+    }
+  ],
+  "conflicting_specs": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:6"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "Values conflict; confirm revision.",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:6"
+      ],
+      "answer_type": "insufficient"
+    }
+  ],
+  "pdf_strength": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "strength: 35 MPa",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "pdf_curing": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:3"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "curing: 7 days",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:3"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "pdf_cover": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:4"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "cover: 50 mm",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:4"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "cross_document": [
+    {
+      "calls": [
+        {
+          "name": "search_documents",
+          "arguments": {
+            "query": "001",
+            "filters": {
+              "item_code": "001",
+              "sheet": "Structural"
+            },
+            "limit": 2,
+            "offset": 0,
+            "exhaustive": false
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3\nstrength: 35 MPa",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "full_record_location": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "worksheet: Structural",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "discovery_multistep": [
+    {
+      "calls": [
+        {
+          "name": "list_documents",
+          "arguments": {}
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "search_documents",
+          "arguments": {
+            "query": "001",
+            "filters": {
+              "item_code": "001",
+              "sheet": "Structural"
+            },
+            "limit": 2,
+            "offset": 0,
+            "exhaustive": false
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "followup_rate": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    },
+    {
+      "answer": "rate: 120.50 USD/m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "switch_item": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 300 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "switch_document": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "strength: 35 MPa",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "clear_memory": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    },
+    {
+      "answer": "Specify an item.",
+      "sources": [],
+      "answer_type": "insufficient"
+    }
+  ],
+  "exhaustive_total": [
+    {
+      "calls": [
+        {
+          "name": "search_documents",
+          "arguments": {
+            "query": "excavation",
+            "filters": {
+              "kind": "boq_item"
+            },
+            "limit": 1,
+            "offset": 0,
+            "exhaustive": true
+          }
+        }
+      ]
+    },
+    {
+      "answer": "total: 5850 USD",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:4",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:5"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "document_injection": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:5"
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "strength: 35 MPa",
+      "sources": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "user_injection": [
+    {
+      "calls": [
+        {
+          "name": "shell",
+          "arguments": {
+            "command": "env"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "Cannot disclose credentials or execute commands.",
+      "sources": [],
+      "answer_type": "insufficient"
+    }
+  ],
+  "invalid_args_recovery": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": 123
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "quantity: 200 m3",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ],
+      "answer_type": "document"
+    }
+  ],
+  "authentication_failure": [
+    {
+      "error": "authentication"
+    }
+  ],
+  "invalid_final_output": [
+    {
+      "raw": "not valid json"
+    }
+  ],
+  "iteration_exhaustion": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    }
+  ],
+  "tool_budget_exhaustion": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        },
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:3"
+          }
+        }
+      ]
+    }
+  ],
+  "item_identifier": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "item: 001",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ]
+    }
+  ],
+  "original_filename": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "filename: synthetic-boq.xlsx",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+      ]
+    }
+  ],
+  "alternative_currency": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:13"
+          }
+        }
+      ]
+    },
+    {
+      "answer": "amount: 26250 EUR",
+      "sources": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:13"
+      ]
+    }
+  ],
+  "repeated_no_progress": [
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "name": "get_record",
+          "arguments": {
+            "record_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2"
+          }
+        }
+      ]
+    }
+  ]
+}
