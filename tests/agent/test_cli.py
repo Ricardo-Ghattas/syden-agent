@@ -5,7 +5,42 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.agents.__main__ import display, main
-from app.agents.schemas import AgentResponse, SourceReference
+from app.agents.schemas import AgentResponse, AgentStatus, SourceReference, StopReason
+
+
+def test_display_warnings_visible_and_status_opt_in(capsys):
+    response = AgentResponse(
+        answer="Quantity is 820.75 m³.",
+        answer_type="document",
+        sources=[],
+        warnings=["Evidence budget reached"],
+        stop_reason=StopReason.COMPLETED,
+    )
+    display(response)
+    output = capsys.readouterr().out
+    assert "Quantity is 820.75 m³." in output
+    assert "Evidence budget reached" in output
+    assert "Status:" not in output
+    display(response, debug=True)
+    output = capsys.readouterr().out
+    assert "Evidence budget reached" in output
+    assert "Status: completed; reason: completed" in output
+    display(response, as_json=True)
+    assert json.loads(capsys.readouterr().out) == response.model_dump(mode="json")
+
+
+def test_display_keeps_failed_status_visible(capsys):
+    display(
+        AgentResponse(
+            answer="The question was not completed.",
+            answer_type="insufficient",
+            sources=[],
+            warnings=[],
+            status=AgentStatus.LIMIT_REACHED,
+            stop_reason=StopReason.TOOL_FAILURES,
+        )
+    )
+    assert "Status: limit_reached; reason: tool_failures" in capsys.readouterr().out
 
 
 def test_display_groups_matching_locations_but_json_keeps_record_citations(
@@ -30,7 +65,11 @@ def test_display_groups_matching_locations_but_json_keeps_record_citations(
         warnings=[],
     )
     display(response)
-    assert capsys.readouterr().out.count("Source:") == 2
+    # Repeated records on the same page share one citation label.
+    output = capsys.readouterr().out
+    assert output.count(first.filename) == 1
+    assert f"page {first.page}" in output
+    assert f"page {other_page.page}" in output
     display(response, as_json=True)
     assert len(json.loads(capsys.readouterr().out)["sources"]) == 3
 
@@ -60,8 +99,9 @@ def test_cli_answer_sources_json_and_close(monkeypatch, capsys):
     main()
     text = capsys.readouterr().out
     assert "Quantity is -2.5." in text
-    assert "Source: boq.xlsx, sheet Structural, rows 38–38" in text
-    assert "Warning: Partial evidence" in text
+    assert "boq.xlsx" in text
+    assert "sheet Structural, row 38" in text
+    assert "Partial evidence" in text
     llm.client.close.assert_called_once()
     monkeypatch.setattr(sys, "argv", ["syden", "Question", "--json"])
     main()
@@ -135,3 +175,24 @@ def test_chat_input_interruptions_are_graceful(monkeypatch, index, llm, capsys, 
     monkeypatch.setattr("builtins.input", interrupt)
     chat(index, llm, AgentConfig())
     assert "Conversation ended" in capsys.readouterr().out
+
+
+def test_json_chat_has_no_banner_prompts_or_command_messages(
+    monkeypatch, index, llm, capsys
+):
+    from app.agents.__main__ import chat
+    from app.agents.config import AgentConfig
+
+    result = AgentResponse(
+        answer="**USD 1,234.50**",
+        answer_type="document",
+        sources=[],
+        warnings=["Unverified total"],
+    )
+    questions = iter(["/clear", "/new", "Total?", "/exit"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(questions))
+    monkeypatch.setattr("app.agents.__main__.ask", MagicMock(return_value=result))
+    chat(index, llm, AgentConfig(), as_json=True)
+    output = capsys.readouterr().out
+    assert "\x1b[" not in output
+    assert json.loads(output) == result.model_dump(mode="json")

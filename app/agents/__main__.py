@@ -4,73 +4,80 @@ import argparse
 import logging
 
 from pydantic import ValidationError
+from rich.console import Console
+from rich.text import Text
 
 from app.retrieval import DocumentIndex
 
 from .agent import ask
 from .config import AgentConfig
 from .llm import LLM, Settings
+from .rendering import render_response
 from .schemas import AgentError, AgentResponse, AgentStatus
 from .state import ConversationSession
 
 
-def display(response: AgentResponse, *, as_json: bool = False) -> None:
+def display(
+    response: AgentResponse, *, as_json: bool = False, debug: bool = False
+) -> None:
     if as_json:
         print(response.model_dump_json(indent=2))
         return
-    print(response.answer)
-    displayed = set()
-    for source in response.sources:
-        location = [source.filename]
-        if source.page is not None:
-            location.append(f"page {source.page}")
-        if source.sheet is not None:
-            location.append(f"sheet {source.sheet}")
-        if source.row_start is not None:
-            location.append(f"rows {source.row_start}–{source.row_end}")
-        label = ", ".join(location)
-        key = (source.document_id, label)
-        if key not in displayed:
-            print("Source: " + label)
-            displayed.add(key)
-    for warning in response.warnings:
-        print(f"Warning: {warning}")
-    if response.stop_reason is not None:
-        print(f"Status: {response.status.value}; reason: {response.stop_reason.value}")
+    render_response(response, debug=debug)
 
 
 def chat(
-    index: DocumentIndex, llm: LLM, config: AgentConfig, *, as_json: bool = False
+    index: DocumentIndex,
+    llm: LLM,
+    config: AgentConfig,
+    *,
+    as_json: bool = False,
+    debug: bool = False,
 ) -> None:
     session = ConversationSession()
-    print(
-        f"SYDEN — session {session.session_id}\n/clear clears memory; /new starts a conversation; /exit quits."
-    )
+    console = Console()
+    if not as_json:
+        console.print(Text("SYDEN", style="bold blue"))
+        console.print(
+            Text(
+                "/clear clears memory · /new starts a conversation · /exit quits",
+                style="dim",
+            )
+        )
+        if debug:
+            console.print(Text(f"Session {session.session_id}", style="dim"))
     while True:
         try:
-            question = input("You: ").strip()
+            if not as_json:
+                console.print(Text("You › ", style="bold blue"), end="")
+            question = input("").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nConversation ended.")
+            if not as_json:
+                console.print(Text("Conversation ended.", style="dim"))
             break
         command = question.casefold()
         if command in {"/exit", "/quit"}:
             break
         if command == "/clear":
             session.clear()
-            print(f"Conversation cleared — session {session.session_id}")
+            if not as_json:
+                console.print(Text("Conversation cleared", style="dim"))
             continue
         if command == "/new":
             session = ConversationSession()
-            print(f"New conversation — session {session.session_id}")
+            if not as_json:
+                console.print(Text("New conversation", style="dim"))
             continue
         if not question:
             continue
         try:
             response = ask(question, index, llm, session=session, config=config)
         except ValidationError:
-            print("Invalid question; use between 1 and 16000 characters.")
+            Console(stderr=True).print(
+                Text("Invalid question; use between 1 and 16000 characters.")
+            )
             continue
-        display(response, as_json=as_json)
+        display(response, as_json=as_json, debug=debug)
         if response.status == AgentStatus.CANCELLED:
             break
 
@@ -90,7 +97,7 @@ def main(argv: list[str] | None = None):
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Log sanitized execution events without evidence or private reasoning",
+        help="Show execution status, session IDs, and sanitized execution events",
     )
     args = parser.parse_args(argv)
     if args.chat == (args.question is not None):
@@ -106,10 +113,10 @@ def main(argv: list[str] | None = None):
         try:
             index = DocumentIndex(args.processed_dir)
             if args.chat:
-                chat(index, llm, config, as_json=args.json)
+                chat(index, llm, config, as_json=args.json, debug=args.debug)
             else:
                 response = ask(args.question, index, llm, config=config)
-                display(response, as_json=args.json)
+                display(response, as_json=args.json, debug=args.debug)
                 if response.status in {
                     AgentStatus.FAILED,
                     AgentStatus.LIMIT_REACHED,
