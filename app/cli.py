@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="syden",
         description="Construction-document AI assistant. Run without a subcommand to open the interactive TUI.",
-        epilog="Commands: ask QUESTION, ingest FILE..., eval ..., chat (legacy line chat). Use COMMAND --help for options.",
+        epilog="Commands: ask QUESTION, add FILE..., ingest FILE..., eval ..., chat (legacy line chat). Use COMMAND --help for options.",
     )
     parser.add_argument(
         "--env-file",
@@ -39,7 +39,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--debug", action="store_true", help="Show sanitized diagnostics"
     )
-    parser.add_argument("command", nargs="?", choices=["ask", "ingest", "eval", "chat"])
+    parser.add_argument(
+        "command", nargs="?", choices=["ask", "add", "ingest", "eval", "chat"]
+    )
     parser.add_argument("arguments", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     config_home = (
@@ -82,29 +84,57 @@ def main(argv: list[str] | None = None) -> None:
             [*options, *(["--chat"] if args.command == "chat" else []), *args.arguments]
         )
         return
-    if args.command == "ingest":
-        from app.ingestion.pipeline import process_document
+    if args.command in {"add", "ingest"}:
+        from rich.console import Console
+        from rich.text import Text
+
+        from app.ingestion.importing import import_documents
 
         ingest = argparse.ArgumentParser(
-            prog="syden ingest", description="Process PDF or XLSX documents"
+            prog=f"syden {args.command}",
+            description="Import PDF or XLSX documents locally",
         )
         ingest.add_argument("files", nargs="+", type=Path)
         ingest.add_argument("--data-dir", type=Path, default=data_dir)
         values = ingest.parse_args(args.arguments)
+        destination = (
+            processed
+            if args.processed_dir
+            else values.data_dir.expanduser().resolve() / "processed"
+        )
         try:
-            for path in values.files:
-                print(process_document(path.expanduser(), values.data_dir.expanduser()))
-        except (OSError, ValueError, RuntimeError):
-            ingest.exit(
-                1,
-                "Ingestion failed; check the input file, format, and output permissions.\n",
+            batch = import_documents(
+                values.files, values.data_dir.expanduser().resolve(), destination
             )
+        except KeyboardInterrupt:
+            ingest.exit(130, "Import interrupted; completed files were retained.\n")
+        console = Console(stderr=args.command == "ingest")
+        for item in batch.items:
+            if args.command == "ingest" and item.output is not None:
+                print(item.output)
+            console.print(
+                Text(
+                    f"{item.path.name}: {item.status}"
+                    + (f" — {item.message}" if item.message else "")
+                )
+            )
+        if batch.index is not None:
+            console.print(
+                Text(f"{len(batch.index.documents)} documents in collection.")
+            )
+        if batch.error:
+            console.print(Text(batch.error))
+        if batch.error or any(item.status == "Failed" for item in batch.items):
+            ingest.exit(1)
         return
     from app.agents.config import AgentConfig
     from app.agents.llm import LLM, Settings
     from app.agents.schemas import AgentError
     from app.tui.app import SydenApp
 
+    llm = None
+    startup_notice = None
+    config = AgentConfig()
     try:
         settings = Settings.from_env()
         config = AgentConfig.from_env()
@@ -115,10 +145,18 @@ def main(argv: list[str] | None = None) -> None:
             if isinstance(error, AgentError)
             else "Invalid provider configuration."
         )
-        parser.exit(1, f"{message}\nConfigure {env_file} or use --env-file PATH.\n")
+        startup_notice = f"Chat unavailable: {message} Local document import still works. Configure {env_file} and reopen SYDEN to enable chat."
     try:
-        SydenApp(llm, config, processed, debug=args.debug).run()
+        SydenApp(
+            llm,
+            config,
+            processed,
+            data_dir=data_dir,
+            debug=args.debug,
+            startup_notice=startup_notice,
+        ).run()
     except KeyboardInterrupt:
         sys.exit(130)
     finally:
-        llm.client.close()
+        if llm is not None:
+            llm.client.close()

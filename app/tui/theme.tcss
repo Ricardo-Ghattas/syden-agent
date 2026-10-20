@@ -1,38 +1,77 @@
 Screen {
-    background: #15181d;
-    color: #dce0e6;
+    background: #101419;
+    color: #d8dee8;
     layout: vertical;
 }
 #identity {
-    height: auto;
-    max-height: 5;
-    padding: 1 2 0 2;
+    height: 3;
+    padding: 1 3 0 3;
+    border-bottom: tall #34404e;
+    color: #c8d1dc;
 }
 #collection {
-    height: auto;
-    max-height: 3;
-    color: #949eac;
-    padding: 0 2 1 2;
+    display: none;
 }
 #conversation {
     height: 1fr;
-    padding: 0 2;
-    scrollbar-color: #536b8a;
-    scrollbar-background: #15181d;
+    padding: 1 3 0 3;
+    scrollbar-color: #52739a;
+    scrollbar-background: #101419;
 }
-.message { height: auto; margin-bottom: 1; }
-.role { height: 1; color: #91add2; text-style: bold; }
-.answer { height: auto; margin-bottom: 1; }
-.notice { height: auto; color: #aeb8c5; margin-bottom: 1; }
-#activity { height: 1; padding: 0 2; color: #91add2; }
+.message { height: auto; margin-bottom: 2; }
+.role { height: 1; color: #91add2; text-style: bold; margin-top: 1; }
+.user-role { color: #b8c4d1; }
+.agent-role { color: #73b8ef; }
+.user-message {
+    padding: 0 1;
+    border-left: tall #3b4653;
+    color: #d8dee8;
+}
+.answer { height: auto; margin-bottom: 2; }
+.answer-message {
+    padding: 0 1;
+    border-left: tall #3e9bdd;
+}
+.notice {
+    height: auto;
+    margin: 1 0 2 0;
+    padding: 0 1;
+    border-left: tall #465365;
+    color: #aeb8c5;
+}
+#activity {
+    height: 2;
+    padding: 1 3 0 3;
+    border-top: tall #34404e;
+    color: #8ca3bb;
+}
 Composer {
-    height: 5;
+    height: 6;
     min-height: 3;
     max-height: 8;
-    margin: 0 1;
-    border: tall #465365;
-    background: #1a1f27;
+    margin: 0 2 1 2;
+    padding: 0 1;
+    border: tall #3f566e;
+    background: #141a21;
 }
-Composer:focus { border: tall #7d9fc9; }
-Footer { background: #15181d; color: #aeb8c5; }
-Footer > .footer--key { background: #15181d; color: #91add2; }
+Composer:focus { border: tall #3398de; }
+Footer { background: #101419; color: #8293a6; padding: 0 2; }
+Footer > .footer--key { background: #101419; color: #63b7f0; }
+ImportDialog {
+    align: center middle;
+}
+#import-dialog {
+    width: 90%;
+    height: 90%;
+    padding: 1;
+    background: #141a21;
+    border: solid #52739a;
+}
+#import-dialog > Static { height: auto; }
+#browse-path { height: 1; border: none; }
+#file-tree { height: 1fr; background: #141a21; }
+#selected-files { height: auto; max-height: 3; overflow-y: auto; }
+#import-buttons { height: 3; }
+#import-buttons > Button { margin-right: 1; min-width: 10; }
+
+#selected-files:focus { background: #202b37; }

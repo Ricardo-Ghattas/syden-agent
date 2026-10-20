@@ -81,31 +81,42 @@ def test_user_config_environment_takes_precedence(monkeypatch, tmp_path):
 
 
 def test_eval_and_ingest_routing(monkeypatch, tmp_path, capsys):
+    from app.ingestion.importing import ImportBatch, ImportItem
+
     evaluate = MagicMock()
-    process = MagicMock(return_value=tmp_path / "collection/processed/result.jsonl")
+    output = tmp_path / "collection/processed/result.jsonl"
+    imported = MagicMock(
+        return_value=ImportBatch(
+            items=[ImportItem(Path("input.pdf"), "Ready", output=output)]
+        )
+    )
     monkeypatch.setattr("evals.runner.main", evaluate)
-    monkeypatch.setattr("app.ingestion.pipeline.process_document", process)
+    monkeypatch.setattr("app.ingestion.importing.import_documents", imported)
     main(["eval", "--mode", "offline"])
     evaluate.assert_called_once_with(["--mode", "offline"])
     main(["ingest", "input.pdf"])
-    process.assert_called_once_with(Path("input.pdf"), tmp_path / "collection")
-    assert "result.jsonl" in capsys.readouterr().out
+    imported.assert_called_once_with(
+        [Path("input.pdf")], tmp_path / "collection", tmp_path / "collection/processed"
+    )
+    assert capsys.readouterr().out.strip() == str(output)
 
 
-def test_missing_key_and_invalid_config_are_safe(monkeypatch, capsys):
+def test_missing_key_and_invalid_config_allow_local_import(monkeypatch, capsys):
+    factory = MagicMock()
+    monkeypatch.setattr("app.tui.app.SydenApp", factory)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(SystemExit) as error:
-        main([])
-    assert error.value.code == 1
-    assert "OPENAI_API_KEY" in capsys.readouterr().err
+    main([])
+    assert factory.call_args.args[0] is None
+    assert "OPENAI_API_KEY" in factory.call_args.kwargs["startup_notice"]
     monkeypatch.setenv("OPENAI_API_KEY", "test-secret")
     monkeypatch.setenv("OPENAI_MODEL", "mock")
     monkeypatch.setenv("OPENAI_TIMEOUT_SECONDS", "invalid-sensitive-value")
-    with pytest.raises(SystemExit):
-        main([])
-    text = capsys.readouterr().err
-    assert "test-secret" not in text
-    assert "invalid-sensitive-value" not in text
+    main([])
+    notice = factory.call_args.kwargs["startup_notice"]
+    assert factory.call_args.args[0] is None
+    assert "test-secret" not in notice
+    assert "invalid-sensitive-value" not in notice
+    assert not capsys.readouterr().out
 
 
 def test_noninteractive_json_is_unchanged(monkeypatch, tmp_path, capsys):
@@ -220,3 +231,40 @@ def test_standalone_install_keeps_user_data_default(monkeypatch, tmp_path):
     assert agent.call_args.args[0][1] == str(
         Path.home() / ".local/share/syden/processed"
     )
+
+
+@pytest.mark.parametrize("command", ["add", "ingest"])
+def test_cli_import_alias_custom_collection_and_duplicates(
+    command, workbook, pdf, tmp_path, capsys
+):
+    from app.retrieval import DocumentIndex
+
+    processed = tmp_path / "chosen-collection"
+    main(["--processed-dir", str(processed), command, str(workbook), str(pdf)])
+    assert len(DocumentIndex(processed).documents) == 2
+    assert not (tmp_path / "collection/processed").exists()
+    main(["--processed-dir", str(processed), command, str(workbook)])
+    output = capsys.readouterr()
+    assert "Previously imported" in output.out + output.err
+
+
+def test_cli_partial_success_exits_nonzero_but_keeps_good_file(
+    workbook, tmp_path, capsys
+):
+    from app.retrieval import DocumentIndex
+
+    with pytest.raises(SystemExit) as error:
+        main(["add", str(tmp_path / "absent.pdf"), str(workbook)])
+    assert error.value.code == 1
+    assert len(DocumentIndex(tmp_path / "collection/processed").documents) == 1
+    assert "Failed" in capsys.readouterr().out
+
+
+def test_cli_add_data_dir_override(workbook, tmp_path):
+    from app.retrieval import DocumentIndex
+
+    chosen = tmp_path / "other-data"
+    main(["add", str(workbook), "--data-dir", str(chosen)])
+    assert len(DocumentIndex(chosen / "processed").documents) == 1
+    assert list((chosen / "raw").iterdir())
+    assert not (tmp_path / "collection").exists()

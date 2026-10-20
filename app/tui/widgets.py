@@ -28,5 +28,7 @@ class Composer(TextArea):
 
 class AnswerView(Static):
     def __init__(self, response: AgentResponse, *, debug: bool = False):
-        super().__init__(response_renderable(response, debug=debug), classes="answer")
+        super().__init__(
+            response_renderable(response, debug=debug), classes="answer answer-message"
+        )
         self.response = response

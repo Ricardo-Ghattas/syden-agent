@@ -70,8 +70,9 @@ async def test_submit_existing_agent_and_preserve_history(app, monkeypatch):
         assert len(app.session.history) == 2
         assert app.focused is composer
         assert app.connection == "Response received"
+        assert app.query_one(AnswerView).has_class("answer-message")
         assert "Quantity?" in notices(app)
-        assert "No documents loaded" in notices(app)
+        assert "No documents imported yet" in notices(app)
 
 
 @pytest.mark.asyncio

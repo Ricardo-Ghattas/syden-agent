@@ -48,7 +48,7 @@ change when you run from a different directory.
 
 ```bash
 syden                                   # interactive TUI
-syden ingest ~/Downloads/boq.xlsx        # default data collection
+syden add ~/Downloads/boq.xlsx           # local import; ingest remains an alias
 syden ingest ./spec.pdf --data-dir ./data
 syden --processed-dir ./data/processed   # choose an explicit collection
 syden ask "What is the quantity of item 001?" --json
@@ -67,6 +67,8 @@ commands retain their existing behavior and relative-path defaults.
 
 | Action | Shortcut or command |
 | --- | --- |
+| Import documents | F3 or `/add` |
+| Show indexed documents | `/documents` |
 | Submit question | Enter |
 | Insert newline | Ctrl+O or F4 |
 | Start a new session | Ctrl+N or `/new` |
@@ -90,8 +92,8 @@ The composer stays editable while a request runs, so you can draft a follow-up.
 Submitting another question is blocked until that request finishes. Local slash
 commands and shortcuts remain available. New messages scroll into view; previous
 messages remain available until a reset. Memory is in-process only, and the
-existing session turn/context budgets remain enforced. The index is loaded once;
-after ingesting additional documents, reopen SYDEN to reload the collection.
+existing session turn/context budgets remain enforced. Imports build and validate a fresh index automatically. New records are searchable
+without restarting; imports selected during an answer wait until it completes.
 
 ## Execution and cancellation
 
@@ -145,3 +147,46 @@ terminals. CLI tests cover routing, configuration precedence, entry point discov
 client cleanup, and JSON output. No paid requests are required. Linux pseudoterminal
 smoke checks verify installed-command launch, Ctrl+O/Ctrl+N/Ctrl+Q handling, and
 restoration of terminal settings after exit.
+
+## Integrated importing
+
+F3 and `/add` open a lazy, keyboard-navigable DirectoryTree dialog. Arrows browse,
+Enter or Space toggles a file selection, F2 confirms, and Esc cancels the dialog.
+Tab focuses the selected-file list; Up/Down and PageUp/PageDown scroll long selections.
+The directory field also accepts a directory or file path. Only PDF and XLSX files
+can be selected. The initial directory is home; later imports remember the most
+recent selection directory for this process. Browsing loads directories on demand;
+SYDEN does not recursively scan home.
+
+`/add "~/Documents/Project BOQ.xlsx" "./spec.pdf"` imports explicit paths directly.
+Shell-like quoting is parsed as data, never executed. `syden add FILE...` and the
+existing `syden ingest FILE...` share the same batch service and document processor.
+The legacy `ingest` command continues printing generated JSONL paths to stdout;
+status summaries go to stderr. CLI imports exit nonzero for failed files or an
+invalid refreshed index, while retaining successfully written files.
+
+Each batch is limited to 64 files and one processing worker. A POSIX advisory
+collection lock also excludes overlapping `add`/`ingest` processes. Raw archives
+remain under the configured data root; JSONL always goes to the active processed
+directory, including custom `--processed-dir` locations. Content hashes detect
+identical documents even when renamed. Changed bytes create new document IDs and
+snapshots; same-named versions are retained separately and are not merged.
+
+Only a fully validated replacement index is installed on the UI thread. If it
+fails, the previous snapshot stays searchable, completed outputs remain on disk,
+and the summary explains how to retry. An import can be retried even when all
+files are duplicates, allowing the collection index to be refreshed. Ordinary
+additions preserve conversation memory. If previously referenced records disappear
+or change, model context is cleared with a visible notice while displayed history
+remains available.
+
+Esc cancels queued files between processing calls; the current file and its atomic
+export finish before cancellation takes effect. Successfully completed files remain
+imported, and remaining files are marked Cancelled. Ctrl+Q waits for local work to
+finish safely before closing. The composer remains editable, but new agent requests
+are blocked while importing. No API calls are made by importing or `/documents`.
+A missing API key or invalid chat configuration opens the TUI in local-import mode;
+fix configuration and reopen to enable AI questions.
+
+The picker uses Textual's [DirectoryTree](https://textual.textualize.io/widgets/directory_tree/)
+and [modal screens](https://textual.textualize.io/guide/screens/).
