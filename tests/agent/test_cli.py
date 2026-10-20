@@ -57,3 +57,54 @@ def test_root_cli_delegates_ask_only(monkeypatch):
     monkeypatch.setattr("app.agents.__main__.main", command)
     root_main(["ask", "Question", "--json"])
     command.assert_called_once_with(["Question", "--json"])
+
+
+def test_root_cli_chat_delegates_to_interactive_command(monkeypatch):
+    from main import main as root_main
+
+    command = MagicMock()
+    monkeypatch.setattr("app.agents.__main__.main", command)
+    root_main(["chat", "--debug"])
+    command.assert_called_once_with(["--chat", "--debug"])
+
+
+def test_chat_followups_clear_new_and_exit(monkeypatch, index, llm, capsys):
+    from app.agents.__main__ import chat
+    from app.agents.config import AgentConfig
+    from app.agents.state import ConversationTurn
+
+    questions = iter(
+        ["First", "Follow-up", "/clear", "After clear", "/new", "After new", "/exit"]
+    )
+    calls = []
+
+    def ask(question, index, llm, *, session, config):
+        calls.append((question, session.session_id, len(session.history)))
+        response = AgentResponse(
+            answer="Answer", answer_type="general", sources=[], warnings=[]
+        )
+        session.history.append(ConversationTurn(question=question, response=response))
+        return response
+
+    monkeypatch.setattr("builtins.input", lambda prompt: next(questions))
+    monkeypatch.setattr("app.agents.__main__.ask", ask)
+    chat(index, llm, AgentConfig())
+    assert [call[2] for call in calls] == [0, 1, 0, 0]
+    assert calls[0][1] == calls[1][1] == calls[2][1]
+    assert calls[3][1] != calls[0][1]
+    output = capsys.readouterr().out
+    assert "Conversation cleared" in output
+    assert "New conversation" in output
+
+
+@pytest.mark.parametrize("error", [EOFError, KeyboardInterrupt])
+def test_chat_input_interruptions_are_graceful(monkeypatch, index, llm, capsys, error):
+    from app.agents.__main__ import chat
+    from app.agents.config import AgentConfig
+
+    def interrupt(prompt):
+        raise error()
+
+    monkeypatch.setattr("builtins.input", interrupt)
+    chat(index, llm, AgentConfig())
+    assert "Conversation ended" in capsys.readouterr().out

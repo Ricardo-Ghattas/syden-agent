@@ -3,7 +3,8 @@ import json
 import pytest
 
 from app.agents.agent import ask
-from app.agents.schemas import AgentError
+from app.agents.config import AgentConfig
+from app.agents.schemas import AgentStatus, StopReason
 from app.tools.registry import reference
 
 from .conftest import answer, call, reply, search_args
@@ -37,7 +38,7 @@ def test_search_to_grounded_answer_with_real_retrieval(index, llm, client):
     assert client.responses.create.call_count == 2
     continuation = client.responses.create.call_args.kwargs
     assert continuation["previous_response_id"] == "resp_first"
-    assert continuation["tool_choice"] == "none"
+    assert continuation["tool_choice"] == "auto"
     output = continuation["input"][1]
     assert output["type"] == "function_call_output"
     assert output["call_id"] == "call_1"
@@ -117,8 +118,9 @@ def test_invalid_or_refused_model_responses_are_controlled(
     index, llm, client, response
 ):
     client.responses.create.return_value = response
-    with pytest.raises(AgentError):
-        ask("Question", index, llm)
+    result = ask("Question", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert result.stop_reason == StopReason.INVALID_RESPONSE
     assert client.responses.create.call_count == 1
 
 
@@ -143,8 +145,9 @@ def test_citations_must_match_evidence_actually_supplied(
         reply(calls=[call(arguments=search_args())]),
         reply(answer=answer(answer_type="document", sources=[citation])),
     ]
-    with pytest.raises(AgentError, match="not supplied"):
-        ask("Find item 2.3", index, llm)
+    result = ask("Find item 2.3", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert "not supplied" in result.answer
 
 
 def test_direct_answer_cannot_invent_citations(index, llm, client):
@@ -155,14 +158,16 @@ def test_direct_answer_cannot_invent_citations(index, llm, client):
             answer_type="document", sources=[reference(record).model_dump(mode="json")]
         )
     )
-    with pytest.raises(AgentError, match="not supplied"):
-        ask("Find item 2.3", index, llm)
+    result = ask("Find item 2.3", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert "not supplied" in result.answer
 
 
 def test_document_answer_requires_sources(index, llm, client):
     client.responses.create.return_value = reply(answer=answer(answer_type="document"))
-    with pytest.raises(AgentError, match="require supporting"):
-        ask("Find a quantity", index, llm)
+    result = ask("Find a quantity", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert "require supporting" in result.answer
 
 
 def test_evidence_cannot_be_labeled_general_to_omit_sources(index, llm, client):
@@ -170,8 +175,9 @@ def test_evidence_cannot_be_labeled_general_to_omit_sources(index, llm, client):
         reply(calls=[call(arguments=search_args())]),
         reply(answer=answer()),
     ]
-    with pytest.raises(AgentError, match="cite its sources"):
-        ask("Find item 2.3", index, llm)
+    result = ask("Find item 2.3", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert "cite its sources" in result.answer
 
 
 def test_partial_evidence_warning_is_attached_even_if_model_omits_it(
@@ -204,14 +210,18 @@ def test_bad_tool_call_outputs_are_returned_to_model(index, llm, client, bad_cal
     assert result.warnings
 
 
-def test_second_round_is_rejected_without_execution(index, llm, client):
+def test_second_round_continues_to_final_answer(index, llm, client):
     client.responses.create.side_effect = [
-        reply(calls=[call("list_documents")]),
-        reply(calls=[call("list_documents")]),
+        reply(calls=[call("list_documents", call_id="first")]),
+        reply(calls=[call("list_documents", call_id="second")]),
+        reply(
+            answer=answer(answer_type="insufficient", text="Please specify a document.")
+        ),
     ]
-    with pytest.raises(AgentError, match="second tool round"):
-        ask("Plan many steps", index, llm)
-    assert client.responses.create.call_count == 2
+    result = ask("Plan many steps", index, llm)
+    assert result.status == AgentStatus.INSUFFICIENT_EVIDENCE
+    assert result.tool_calls == 2
+    assert client.responses.create.call_count == 3
 
 
 @pytest.mark.parametrize(
@@ -223,8 +233,12 @@ def test_second_round_is_rejected_without_execution(index, llm, client):
 )
 def test_tool_batch_is_bounded(index, llm, client, calls):
     client.responses.create.return_value = reply(calls=calls)
-    with pytest.raises(AgentError, match="too many or duplicate"):
-        ask("Question", index, llm)
+    result = ask("Question", index, llm, config=AgentConfig(max_tool_calls=8))
+    assert result.stop_reason in {
+        StopReason.MAX_TOOL_CALLS,
+        StopReason.INVALID_RESPONSE,
+    }
+    assert result.tool_calls == 0
     assert client.responses.create.call_count == 1
 
 
@@ -233,8 +247,9 @@ def test_final_incomplete_response_is_not_accepted(index, llm, client):
         reply(calls=[call("list_documents")]),
         reply(status="incomplete"),
     ]
-    with pytest.raises(AgentError, match="incomplete"):
-        ask("List files", index, llm)
+    result = ask("List files", index, llm)
+    assert result.status == AgentStatus.FAILED
+    assert "incomplete" in result.answer
 
 
 @pytest.mark.parametrize("question", ["", "   ", "x" * 16001])

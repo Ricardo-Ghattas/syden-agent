@@ -17,7 +17,9 @@ def index():
 
 @pytest.fixture
 def client():
-    return MagicMock()
+    client = MagicMock()
+    client.with_options.return_value = client
+    return client
 
 
 @pytest.fixture

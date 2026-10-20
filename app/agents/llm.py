@@ -18,13 +18,13 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 from app.tools.schemas import TOOL_DEFINITIONS
 
 from .prompts import DEVELOPER_PROMPT, SYSTEM_PROMPT
-from .schemas import AgentError, AgentResponse
+from .schemas import AgentError, AnswerContent
 
 logger = logging.getLogger(__name__)
 
 
 class Settings(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
     api_key: SecretStr = Field(repr=False)
     model: str = Field(min_length=1, pattern=r"\S")
     timeout: float = Field(default=60, gt=0, le=600)
@@ -74,9 +74,17 @@ class LLM:
         *,
         previous_response_id: str | None = None,
         final: bool = False,
+        timeout: float | None = None,
     ) -> Response:
         try:
-            response = self.client.responses.create(
+            client = (
+                self.client
+                if timeout is None
+                else self.client.with_options(
+                    timeout=min(self.settings.timeout, timeout), max_retries=0
+                )
+            )
+            response = client.responses.create(
                 model=self.settings.model,
                 instructions=SYSTEM_PROMPT,
                 input=[{"role": "developer", "content": DEVELOPER_PROMPT}, *inputs],
@@ -84,13 +92,15 @@ class LLM:
                 tool_choice="none" if final else "auto",
                 parallel_tool_calls=True,
                 previous_response_id=previous_response_id,
+                store=True,
+                truncation="disabled",
                 max_output_tokens=self.settings.max_output_tokens,
                 text={
                     "format": {
                         "type": "json_schema",
                         "name": "syden_answer",
                         "strict": True,
-                        "schema": AgentResponse.model_json_schema(),
+                        "schema": AnswerContent.model_json_schema(),
                     }
                 },
             )
@@ -102,18 +112,20 @@ class LLM:
         except RateLimitError as error:
             logger.warning("OpenAI rate limit or quota reached")
             raise AgentError(
-                "OpenAI rate limit or quota reached; retry later."
+                "OpenAI rate limit or quota reached; retry later.",
+                retryable=error.code != "insufficient_quota",
             ) from error
         except APITimeoutError as error:
             logger.warning("OpenAI request timed out")
-            raise AgentError("OpenAI request timed out.") from error
+            raise AgentError("OpenAI request timed out.", retryable=True) from error
         except APIConnectionError as error:
             logger.warning("OpenAI connection failed")
-            raise AgentError("Could not connect to OpenAI.") from error
+            raise AgentError("Could not connect to OpenAI.", retryable=True) from error
         except APIStatusError as error:
             logger.warning("OpenAI request failed status=%s", error.status_code)
             raise AgentError(
-                "OpenAI rejected or failed the request; check model access and configuration."
+                "OpenAI rejected or failed the request; check model access and configuration.",
+                retryable=error.status_code in {408, 409} or error.status_code >= 500,
             ) from error
         except APIError as error:
             logger.warning("OpenAI returned an invalid API response")

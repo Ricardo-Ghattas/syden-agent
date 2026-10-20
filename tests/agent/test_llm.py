@@ -156,7 +156,7 @@ def test_official_sdk_serializes_two_requests_over_mock_transport(index):
     assert response.sources[0].row_start == 38
     assert len(requests) == 2
     assert requests[1]["previous_response_id"] == "resp_first"
-    assert requests[1]["tool_choice"] == "none"
+    assert requests[1]["tool_choice"] == "auto"
     assert requests[0]["text"]["format"]["strict"]
     assert requests[0]["tools"][0]["type"] == "function"
 
@@ -189,3 +189,57 @@ def test_sdk_retries_only_transient_failures(status, attempts):
         with pytest.raises(AgentError):
             llm.respond([{"role": "user", "content": "Question"}])
     assert len(calls) == attempts
+
+
+@pytest.mark.parametrize(
+    ("status", "code", "attempts", "completed"),
+    [
+        (429, "rate_limit_exceeded", 2, True),
+        (500, "server_error", 2, True),
+        (401, "invalid_api_key", 1, False),
+        (429, "insufficient_quota", 1, False),
+    ],
+)
+def test_orchestrator_owns_sdk_recovery_and_counts_every_attempt(
+    index, monkeypatch, status, code, attempts, completed
+):
+    from openai import OpenAI
+    from pydantic import SecretStr
+
+    from app.agents.agent import run_agent
+    from app.agents.schemas import AgentStatus
+
+    monkeypatch.setattr("app.agents.agent.sleep", lambda duration: None)
+    requests = []
+
+    def transport(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx2.Response(
+                status,
+                json={
+                    "error": {
+                        "message": "private API payload",
+                        "type": code,
+                        "code": code,
+                    }
+                },
+            )
+        return httpx2.Response(200, json=reply(answer=answer()).model_dump(mode="json"))
+
+    with OpenAI(
+        api_key="offline-only",
+        max_retries=2,
+        http_client=httpx2.Client(transport=httpx2.MockTransport(transport)),
+    ) as sdk:
+        llm = LLM(
+            Settings(
+                api_key=SecretStr("offline-only"), model="test-model", max_retries=1
+            ),
+            sdk,
+        )
+        state = run_agent("General question", index, llm)
+    assert len(requests) == state.iterations == attempts
+    assert (state.status == AgentStatus.COMPLETED) == completed
+    assert state.final_response is not None
+    assert "private API payload" not in state.final_response.answer

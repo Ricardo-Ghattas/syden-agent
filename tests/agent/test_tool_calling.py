@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from app.agents.schemas import AgentResponse
+from app.agents.schemas import AnswerContent
 from app.tools.registry import ToolRegistry
 from app.tools.schemas import TOOL_DEFINITIONS
 
@@ -31,7 +31,7 @@ def test_native_schemas_are_strict_and_nullable():
         assert tool.get("description")
         assert_strict(tool["parameters"])
     assert names == {"search_documents", "get_record", "list_documents"}
-    assert_strict(AgentResponse.model_json_schema())
+    assert_strict(AnswerContent.model_json_schema())
 
 
 @pytest.mark.parametrize(

@@ -1,8 +1,9 @@
 """Allowlisted read-only retrieval with a per-question evidence budget."""
 
+import hashlib
 import json
 import logging
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Any
 
 from pydantic import ValidationError
@@ -37,12 +38,25 @@ def reference(record: Record) -> SourceReference:
 class ToolRegistry:
     """Request-local dispatcher; the shared index is never mutated by tools."""
 
-    def __init__(self, index: DocumentIndex, max_output_bytes: int = 60000):
+    def __init__(
+        self,
+        index: DocumentIndex,
+        max_output_bytes: int = 60000,
+        *,
+        deadline: float | None = None,
+    ):
         if max_output_bytes < 2048:
             raise ValueError("Tool output budget must be at least 2048 bytes")
         self.index = index
         self.remaining_bytes = max_output_bytes
+        self.deadline = deadline
+        self.evidence: dict[str, dict] = {}
+        self.representation_hashes: set[str] = set()
+        self.result_fingerprint = ""
+        self._pending_records: dict[str, dict] = {}
+        self._pending_hashes: set[str] = set()
         self.sources: list[SourceReference] = []
+        self.supplied_this_run: list[SourceReference] = []
         self.warnings: list[str] = []
         self.handlers = {
             "search_documents": self.search,
@@ -53,6 +67,8 @@ class ToolRegistry:
     def execute(self, name: str, arguments: str) -> str:
         started = perf_counter()
         success = False
+        self._pending_records = {}
+        self._pending_hashes = set()
         try:
             if name not in self.handlers:
                 return self.error(
@@ -69,7 +85,9 @@ class ToolRegistry:
                     "invalid_arguments",
                     "Arguments must match the tool's strict JSON schema.",
                 )
+            self.check_deadline()
             data, sources = self.handlers[name](args)
+            self.check_deadline()
             output = encode({"ok": True, "data": data})
             size = len(output.encode("utf-8"))
             if size > self.remaining_bytes:
@@ -78,7 +96,30 @@ class ToolRegistry:
                     "Result exceeds the remaining evidence budget; narrow the query or document scope.",
                 )
             self.remaining_bytes -= size
-            self.sources.extend(sources)
+            comparable = dict(data)
+            comparable.pop("query", None)
+            comparable.pop("filters", None)
+            if isinstance(data.get("record"), dict):
+                item = data["record"]
+                comparable["record"] = self._pending_records.get(
+                    item.get("id", item.get("record_id")), item
+                )
+            if "results" in data:
+                comparable["results"] = [
+                    {**item, "record": self._pending_records[item["record_id"]]}
+                    for item in data["results"]
+                ]
+            self.result_fingerprint = hashlib.sha256(
+                encode(comparable).encode()
+            ).hexdigest()
+            self.evidence.update(self._pending_records)
+            self.representation_hashes.update(self._pending_hashes)
+            self.sources.extend(
+                source for source in sources if source not in self.sources
+            )
+            self.supplied_this_run.extend(
+                source for source in sources if source not in self.supplied_this_run
+            )
             self.warnings.extend(data.get("warnings", []))
             success = True
             return output
@@ -106,7 +147,25 @@ class ToolRegistry:
 
     def error(self, code: str, message: str) -> str:
         self.warnings.append(f"{code}: {message}")
-        return encode({"ok": False, "error": {"code": code, "message": message}})
+        output = encode({"ok": False, "error": {"code": code, "message": message}})
+        self.result_fingerprint = hashlib.sha256(output.encode()).hexdigest()
+        return output
+
+    def check_deadline(self) -> None:
+        if self.deadline is not None and monotonic() >= self.deadline:
+            raise TimeoutError("Retrieval deadline reached")
+
+    def compact_record(self, record: dict) -> dict:
+        digest = hashlib.sha256(encode(record).encode()).hexdigest()
+        self._pending_records[record["id"]] = record
+        self._pending_hashes.add(digest)
+        if digest in self.representation_hashes:
+            return {
+                "already_supplied": True,
+                "record_id": record["id"],
+                "representation_sha256": digest,
+            }
+        return record
 
     def index_warnings(self) -> list[str]:
         return (
@@ -138,11 +197,13 @@ class ToolRegistry:
         }
         stopped = False
         while True:
+            self.check_deadline()
             page = search_documents(
                 self.index, args.query, args.filters, args.limit, offset
             )
             data["total"] = page.total
             for result in page.results:
+                self.check_deadline()
                 record = result.record
                 citation = reference(record)
                 projected = record.model_dump(
@@ -165,13 +226,17 @@ class ToolRegistry:
                 ]
                 entry = {
                     "record_id": result.record_id,
-                    "record": projected,
+                    "record": self.compact_record(projected),
                     "citation": citation.model_dump(mode="json"),
                 }
                 results.append(entry)
                 # Reserve space for completion flags and warnings; never cut a record's values.
                 if len(encode(data).encode("utf-8")) + 1024 > self.remaining_bytes:
                     results.pop()
+                    self._pending_records.pop(record.id, None)
+                    self._pending_hashes.discard(
+                        hashlib.sha256(encode(projected).encode()).hexdigest()
+                    )
                     stopped = True
                     break
                 sources.append(citation)
@@ -201,7 +266,9 @@ class ToolRegistry:
         record = self.index.get_record(args.record_id)
         citation = reference(record) if record else None
         return {
-            "record": record.model_dump(mode="json") if record else None,
+            "record": self.compact_record(record.model_dump(mode="json"))
+            if record
+            else None,
             "citation": citation.model_dump(mode="json") if citation else None,
             "found": record is not None,
             "index_complete": not self.index.report.issues,

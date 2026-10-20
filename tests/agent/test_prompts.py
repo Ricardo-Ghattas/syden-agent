@@ -14,7 +14,7 @@ def test_instructions_cover_grounding_completeness_and_untrusted_content():
         "entire BOQ",
         "exhaustive=true",
         "Ranking scores",
-        "one batch",
+        "several tool rounds",
         "arithmetic is not independently verified",
         "copied exactly",
     ]:
